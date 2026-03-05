@@ -29,14 +29,10 @@ sg.Name="CyRuZzz_Hub"
 sg.ResetOnSpawn=false
 sg.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
 sg.IgnoreGuiInset=true
+sg.Parent=player.PlayerGui
 local function MountGui()
-    pcall(function()
-        if rawget(_G,"syn") and rawget(syn,"protect_gui") then syn.protect_gui(sg) end
-    end)
-    local ok=pcall(function() sg.Parent=game:GetService("CoreGui") end)
-    if not ok then pcall(function() sg.Parent=player.PlayerGui end) end
+    if not sg.Parent then sg.Parent=player.PlayerGui end
 end
-MountGui()
 
 local C={
     BG=Color3.fromRGB(7,6,14),
@@ -1758,7 +1754,7 @@ CloseBtn.MouseButton1Click:Connect(function()
 end)
 
 AddConn(RunService.Heartbeat:Connect(function()
-    if sg and not sg.Parent then MountGui() end
+    if sg and not sg.Parent then sg.Parent=player.PlayerGui end
 end))
 
 SwitchTab("MAIN")
