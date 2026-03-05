@@ -6,17 +6,29 @@ local ReplicatedStorage=game:GetService("ReplicatedStorage")
 local Lighting=game:GetService("Lighting")
 local HttpService=game:GetService("HttpService")
 local ContextActionService=game:GetService("ContextActionService")
+
+-- WAIT for LocalPlayer - executor runs in CoreGui where LocalPlayer can be nil
 local player=Players.LocalPlayer
+if not player then
+    player=Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+    player=Players.LocalPlayer
+end
+if not player then repeat task.wait() player=Players.LocalPlayer until player end
+
 local camera=workspace.CurrentCamera
 local mouse=nil
 pcall(function() mouse=player:GetMouse() end)
 
-for _,ui in pairs(player.PlayerGui:GetChildren()) do
-    if ui.Name=="CyRuZzz_Hub" then ui:Destroy() end
-end
-for _,h in pairs(workspace:GetChildren()) do
-    if h.Name=="_CyESP" then h:Destroy() end
-end
+pcall(function()
+    for _,ui in pairs(player.PlayerGui:GetChildren()) do
+        if ui.Name=="CyRuZzz_Hub" then ui:Destroy() end
+    end
+end)
+pcall(function()
+    for _,h in pairs(workspace:GetChildren()) do
+        if h.Name=="_CyESP" then h:Destroy() end
+    end
+end)
 if _G.CyHz then
     for _,c in pairs(_G.CyHz) do pcall(function() c:Disconnect() end) end
 end
@@ -29,7 +41,10 @@ sg.Name="CyRuZzz_Hub"
 sg.ResetOnSpawn=false
 sg.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
 sg.IgnoreGuiInset=true
-sg.Parent=player.PlayerGui
+do
+    local pg=player:FindFirstChild("PlayerGui") or player:WaitForChild("PlayerGui",5)
+    sg.Parent=pg or player.PlayerGui
+end
 local function MountGui()
     if not sg.Parent then sg.Parent=player.PlayerGui end
 end
@@ -1754,7 +1769,7 @@ CloseBtn.MouseButton1Click:Connect(function()
 end)
 
 AddConn(RunService.Heartbeat:Connect(function()
-    if sg and not sg.Parent then sg.Parent=player.PlayerGui end
+    if sg and not sg.Parent then pcall(function() sg.Parent=player.PlayerGui end) end
 end))
 
 SwitchTab("MAIN")
