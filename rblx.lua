@@ -24,11 +24,19 @@ _G.CyHz={}
 if not _G.CyPluginLib then _G.CyPluginLib={} end
 if not _G.CyBH then _G.CyBH={skipList={}} end
 
-local sg=Instance.new("ScreenGui",player.PlayerGui)
+local sg=Instance.new("ScreenGui")
 sg.Name="CyRuZzz_Hub"
 sg.ResetOnSpawn=false
 sg.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
 sg.IgnoreGuiInset=true
+local function MountGui()
+    pcall(function()
+        if rawget(_G,"syn") and rawget(syn,"protect_gui") then syn.protect_gui(sg) end
+    end)
+    local ok=pcall(function() sg.Parent=game:GetService("CoreGui") end)
+    if not ok then pcall(function() sg.Parent=player.PlayerGui end) end
+end
+MountGui()
 
 local C={
     BG=Color3.fromRGB(7,6,14),
@@ -705,12 +713,32 @@ local function BuildScanList(filter)
 end
 local function DoScan()
     allObjs={}
+    local function addDeep(parent,depth)
+        if depth<=0 then return end
+        pcall(function()
+            for _,obj in ipairs(parent:GetChildren()) do
+                if obj==player.Character then continue end
+                if obj.Name=="_CyESP" then continue end
+                if obj.Name=="Terrain" then continue end
+                table.insert(allObjs,obj)
+                if obj:IsA("Model") or obj:IsA("Folder") then
+                    addDeep(obj,depth-1)
+                end
+            end
+        end)
+    end
     for _,obj in ipairs(workspace:GetChildren()) do
         if obj.Name==player.Name then continue end
         if obj.Name=="Terrain" then continue end
         if obj.Name=="_CyESP" then continue end
         table.insert(allObjs,obj)
-        if obj:IsA("Model") and not Players:GetPlayerFromCharacter(obj) then
+        -- Deep scan known brainrot containers
+        local lname=obj.Name:lower()
+        if lname:find("brainrot") or lname:find("active") or lname:find("item")
+        or lname:find("drop") or lname:find("spawn") or lname:find("collect")
+        or lname:find("map") or lname:find("zone") or lname:find("holder") then
+            addDeep(obj,3)
+        elseif obj:IsA("Model") and not Players:GetPlayerFromCharacter(obj) then
             for _,child in ipairs(obj:GetChildren()) do
                 if child:IsA("Model") or child:IsA("BasePart") then
                     table.insert(allObjs,child)
@@ -1730,12 +1758,7 @@ CloseBtn.MouseButton1Click:Connect(function()
 end)
 
 AddConn(RunService.Heartbeat:Connect(function()
-    if sg and not sg.Parent then
-        pcall(function()
-            if typeof(gethui)=="function" then sg.Parent=gethui()
-            else sg.Parent=player.PlayerGui end
-        end)
-    end
+    if sg and not sg.Parent then MountGui() end
 end))
 
 SwitchTab("MAIN")
