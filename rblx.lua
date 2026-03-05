@@ -1,1323 +1,990 @@
---[[
-    CyRuZzz HUB
-]]
+local Players=game:GetService("Players")
+local RunService=game:GetService("RunService")
+local UserInputService=game:GetService("UserInputService")
+local TweenService=game:GetService("TweenService")
+local ReplicatedStorage=game:GetService("ReplicatedStorage")
+local Lighting=game:GetService("Lighting")
+local HttpService=game:GetService("HttpService")
+local ContextActionService=game:GetService("ContextActionService")
+local player=Players.LocalPlayer
+local camera=workspace.CurrentCamera
+local mouse=player:GetMouse()
 
-local Players           = game:GetService("Players")
-local RunService        = game:GetService("RunService")
-local UserInputService  = game:GetService("UserInputService")
-local TweenService      = game:GetService("TweenService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local player            = Players.LocalPlayer
-local camera            = workspace.CurrentCamera
-
--- ============================================================
--- CLEANUP
--- ============================================================
-for _, ui in pairs(player.PlayerGui:GetChildren()) do
-    if ui.Name == "CyRuZzz_Hub" then ui:Destroy() end
+for _,ui in pairs(player.PlayerGui:GetChildren()) do
+    if ui.Name=="CyRuZzz_Hub" then ui:Destroy() end
 end
-for _, h in pairs(workspace:GetChildren()) do
-    if h.Name == "_CyESP" then h:Destroy() end
+for _,h in pairs(workspace:GetChildren()) do
+    if h.Name=="_CyESP" then h:Destroy() end
 end
+if _G.CyHz then
+    for _,c in pairs(_G.CyHz) do pcall(function() c:Disconnect() end) end
+end
+_G.CyHz={}
+if not _G.CyPluginLib then _G.CyPluginLib={} end
+if not _G.CyBH then _G.CyBH={skipList={}} end
 
-local sg = Instance.new("ScreenGui", player.PlayerGui)
-sg.Name         = "CyRuZzz_Hub"
-sg.ResetOnSpawn = false
-sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+local sg=Instance.new("ScreenGui",player.PlayerGui)
+sg.Name="CyRuZzz_Hub"
+sg.ResetOnSpawn=false
+sg.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+sg.IgnoreGuiInset=true
 
--- ============================================================
--- UTIL
--- ============================================================
-local function Lerp(a,b,t) return a+(b-a)*t end
-local function Corner(p,r) local c=Instance.new("UICorner",p) c.CornerRadius=UDim.new(0,r or 8) return c end
-local function Stroke(p,col,th) local s=Instance.new("UIStroke",p) s.Color=col or Color3.fromRGB(130,80,255) s.Thickness=th or 1.5 return s end
-local function Tween(obj,t,props) TweenService:Create(obj,TweenInfo.new(t,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),props):Play() end
-
--- ============================================================
--- WARNA
--- ============================================================
-local C = {
-    BG      = Color3.fromRGB(10,10,18),
-    Panel   = Color3.fromRGB(16,14,26),
-    Card    = Color3.fromRGB(22,20,36),
-    CardHov = Color3.fromRGB(34,30,54),
-    Accent  = Color3.fromRGB(130,80,255),
-    Accent2 = Color3.fromRGB(70,150,255),
-    Green   = Color3.fromRGB(40,200,110),
-    Red     = Color3.fromRGB(200,50,70),
-    Orange  = Color3.fromRGB(255,150,40),
-    Yellow  = Color3.fromRGB(255,215,40),
-    Cyan    = Color3.fromRGB(40,220,210),
-    Pink    = Color3.fromRGB(255,75,175),
-    Lime    = Color3.fromRGB(120,255,80),
-    Text    = Color3.fromRGB(228,222,255),
-    Sub     = Color3.fromRGB(120,110,155),
-    Input   = Color3.fromRGB(14,12,24),
-    TabBG   = Color3.fromRGB(13,11,22),
+local C={
+    BG=Color3.fromRGB(7,6,14),
+    Panel=Color3.fromRGB(12,10,22),
+    Card=Color3.fromRGB(18,16,32),
+    CardH=Color3.fromRGB(28,24,50),
+    Acc=Color3.fromRGB(120,70,255),
+    Acc2=Color3.fromRGB(60,140,255),
+    Green=Color3.fromRGB(35,195,100),
+    Red=Color3.fromRGB(210,45,65),
+    Orange=Color3.fromRGB(255,145,35),
+    Yellow=Color3.fromRGB(255,210,35),
+    Cyan=Color3.fromRGB(35,215,205),
+    Pink=Color3.fromRGB(255,65,170),
+    Lime=Color3.fromRGB(110,250,75),
+    Gold=Color3.fromRGB(255,185,25),
+    Teal=Color3.fromRGB(0,200,175),
+    Purple=Color3.fromRGB(180,80,255),
+    Blue=Color3.fromRGB(40,130,255),
+    Text=Color3.fromRGB(225,218,255),
+    Sub=Color3.fromRGB(110,100,148),
+    Input=Color3.fromRGB(11,9,20),
+    Dark=Color3.fromRGB(6,5,12),
+    Border=Color3.fromRGB(35,28,65),
 }
 
--- ============================================================
--- STATE
--- ============================================================
-local State = {
-    speedOn    = false,
-    flying     = false,
-    ghost      = false,
-    godmode    = false,
-    espObj     = false,
-    espAvatar  = false,
-    targetLock = false,
-    magnet     = false,
-    offsetDist = 15,
-    -- AUTO
-    autoRebirth = false,
-    autoSell    = false,
-    autoCollect = false,
-    autoBaseUp  = false,
-    autoSlotUp  = false,
+local State={
+    speedOn=false,flying=false,noclip=false,ghost=false,godmode=false,
+    freecam=false,clickTP=false,infJump=false,fullbright=false,
+    espObj=false,espPlayers=false,targetLock=false,
+    aimbot=false,magnet=false,follow=false,hitch=false,
+    instantE=false,
+    speedVal=120,offsetDist=15,magnetRadius=50,
+    followTarget=nil,hitchTarget=nil,lockTarget=nil,
+    originalWalkSpeed=16,originalFOV=70,
+    originalAmbient=nil,originalOutdoor=nil,originalBrightness=nil,
+    freecamActive=false,
 }
 
-local originalWalkSpeed = 16
+local Conns={}
+local function AddConn(c) table.insert(Conns,c) table.insert(_G.CyHz,c) return c end
 
--- ============================================================
--- REMOTE HELPER — cari remote di Events atau root RS
--- ============================================================
-local Ev = ReplicatedStorage:FindFirstChild("Events") or ReplicatedStorage
-
-local function FindRemote(name)
-    -- Cari di Events dulu, lalu ReplicatedStorage, lalu workspace
-    local r = Ev:FindFirstChild(name)
-              or ReplicatedStorage:FindFirstChild(name, true)
-              or workspace:FindFirstChild(name, true)
-    return r
+local function Tw(o,t,p,es,ed)
+    TweenService:Create(o,TweenInfo.new(t,es or Enum.EasingStyle.Quart,ed or Enum.EasingDirection.Out),p):Play()
 end
-
--- ============================================================
--- MAIN WINDOW  (340 x 470)
--- ============================================================
-local Main = Instance.new("Frame", sg)
-Main.Name             = "Main"
-Main.Size             = UDim2.new(0,340,0,470)
-Main.Position         = UDim2.new(0.5,-170,0.5,-235)
-Main.BackgroundColor3 = C.BG
-Main.Active = true Main.Draggable = true Main.ClipsDescendants = true
-Corner(Main,14)
-local mainStroke = Stroke(Main,C.Accent,2)
-
-local bgGrad = Instance.new("UIGradient",Main)
-bgGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0,Color3.fromRGB(13,10,22)),
-    ColorSequenceKeypoint.new(1,Color3.fromRGB(9,8,18))
-}) bgGrad.Rotation = 135
-
--- Topbar
-local Topbar = Instance.new("Frame",Main)
-Topbar.Size = UDim2.new(1,0,0,44) Topbar.BackgroundColor3 = C.Panel Corner(Topbar,14)
-local TopFix = Instance.new("Frame",Topbar)
-TopFix.Size = UDim2.new(1,0,0,14) TopFix.Position = UDim2.new(0,0,1,-14)
-TopFix.BackgroundColor3 = C.Panel TopFix.BorderSizePixel = 0
-
-local Dot = Instance.new("Frame",Topbar)
-Dot.Size = UDim2.new(0,7,0,7) Dot.Position = UDim2.new(0,12,0.5,-3.5)
-Dot.BackgroundColor3 = C.Accent Corner(Dot,4)
-
-local TitleLbl = Instance.new("TextLabel",Topbar)
-TitleLbl.Size = UDim2.new(1,-100,1,0) TitleLbl.Position = UDim2.new(0,24,0,0)
-TitleLbl.Text = "CyRuZzz Hub  v2.0" TitleLbl.TextColor3 = C.Text
-TitleLbl.Font = Enum.Font.GothamBold TitleLbl.TextSize = 14
-TitleLbl.BackgroundTransparency = 1 TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
-
-local function TopBtn(txt,xOff,col)
-    local b = Instance.new("TextButton",Topbar)
-    b.Size = UDim2.new(0,26,0,26) b.Position = UDim2.new(1,xOff,0.5,-13)
-    b.Text = txt b.BackgroundColor3 = col b.TextColor3 = Color3.new(1,1,1)
-    b.Font = Enum.Font.GothamBold b.TextSize = 12 b.BorderSizePixel = 0
-    b.AutoButtonColor = false Corner(b,6) return b
+local function Cr(p,r) local c=Instance.new("UICorner",p) c.CornerRadius=UDim.new(0,r or 8) return c end
+local function Sk(p,col,th) local s=Instance.new("UIStroke",p) s.Color=col or C.Acc s.Thickness=th or 1.5 return s end
+local function Pad(p,l,r,t,b)
+    local pd=Instance.new("UIPadding",p)
+    pd.PaddingLeft=UDim.new(0,l or 0) pd.PaddingRight=UDim.new(0,r or 0)
+    pd.PaddingTop=UDim.new(0,t or 0) pd.PaddingBottom=UDim.new(0,b or 0)
+    return pd
 end
-local MinBtn   = TopBtn("−",-60,C.CardHov)
-local CloseBtn = TopBtn("✕",-28,C.Red)
-
--- ============================================================
--- TAB BAR  (5 tab)
--- ============================================================
-local TabBar = Instance.new("Frame",Main)
-TabBar.Size = UDim2.new(1,-16,0,30) TabBar.Position = UDim2.new(0,8,0,48)
-TabBar.BackgroundColor3 = C.TabBG Corner(TabBar,8)
-local TabLayout = Instance.new("UIListLayout",TabBar)
-TabLayout.FillDirection = Enum.FillDirection.Horizontal
-TabLayout.SortOrder = Enum.SortOrder.LayoutOrder TabLayout.Padding = UDim.new(0,2)
-local TabPad = Instance.new("UIPadding",TabBar)
-TabPad.PaddingLeft=UDim.new(0,3) TabPad.PaddingRight=UDim.new(0,3)
-TabPad.PaddingTop=UDim.new(0,3) TabPad.PaddingBottom=UDim.new(0,3)
-
-local ContentArea = Instance.new("Frame",Main)
-ContentArea.Size = UDim2.new(1,-16,1,-88) ContentArea.Position = UDim2.new(0,8,0,84)
-ContentArea.BackgroundTransparency = 1
-
-local pages   = {}
-local tabBtns = {}
-
-local tabDefs = {
-    {name="MAIN",  icon="⚡", col=C.Accent},
-    {name="ESP",   icon="👁",  col=C.Cyan},
-    {name="SCAN",  icon="🔍", col=C.Accent2},
-    {name="AUTO",  icon="🤖", col=C.Lime},
-    {name="REMOT", icon="📡", col=C.Pink},
-}
-
-for i,def in ipairs(tabDefs) do
-    local tb = Instance.new("TextButton",TabBar)
-    tb.Size = UDim2.new(0.2,-2,1,0)
-    tb.Text = def.icon.." "..def.name
-    tb.Font = Enum.Font.GothamSemibold tb.TextSize = 9
-    tb.BackgroundColor3 = C.Card tb.TextColor3 = C.Sub
-    tb.AutoButtonColor = false tb.LayoutOrder = i Corner(tb,6)
-    tabBtns[def.name] = {btn=tb,def=def}
-    local page = Instance.new("Frame",ContentArea)
-    page.Size = UDim2.new(1,0,1,0) page.BackgroundTransparency = 1 page.Visible = false
-    pages[def.name] = page
-end
-
-local function SwitchTab(name)
-    for n,p in pairs(pages) do p.Visible = n==name end
-    for n,t in pairs(tabBtns) do
-        local active = n==name
-        Tween(t.btn,0.12,{
-            BackgroundColor3 = active and t.def.col or C.Card,
-            TextColor3       = active and Color3.new(1,1,1) or C.Sub
-        })
+local function HRP() local c=player.Character return c and c:FindFirstChild("HumanoidRootPart") end
+local function HUM() local c=player.Character return c and c:FindFirstChildOfClass("Humanoid") end
+local function ObjPos(obj)
+    if not obj or not obj.Parent then return nil end
+    if obj:IsA("BasePart") then return obj.Position end
+    if obj:IsA("Model") then
+        local r=obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
+        if r then return r.Position end
+        local ok,cf=pcall(function() return obj:GetModelCFrame() end)
+        if ok and cf then return cf.Position end
     end
+    return nil
+end
+local function Lerp(a,b,t) return a+(b-a)*t end
+
+local Main=Instance.new("Frame",sg)
+Main.Name="Main"
+Main.Size=UDim2.new(0,360,0,510)
+Main.Position=UDim2.new(0.5,-180,0.5,-255)
+Main.BackgroundColor3=C.BG
+Main.Active=true Main.Draggable=true Main.ClipsDescendants=true
+Cr(Main,14)
+local mainStroke=Sk(Main,C.Acc,2)
+local mainGrad=Instance.new("UIGradient",Main)
+mainGrad.Color=ColorSequence.new({
+    ColorSequenceKeypoint.new(0,Color3.fromRGB(10,7,20)),
+    ColorSequenceKeypoint.new(1,Color3.fromRGB(5,5,12))
+}) mainGrad.Rotation=145
+
+local TopGlow=Instance.new("Frame",Main)
+TopGlow.Size=UDim2.new(1,0,0,2)
+TopGlow.BackgroundColor3=C.Acc
+TopGlow.BorderSizePixel=0
+local TopGlowG=Instance.new("UIGradient",TopGlow)
+TopGlowG.Color=ColorSequence.new({
+    ColorSequenceKeypoint.new(0,Color3.fromRGB(0,0,0)),
+    ColorSequenceKeypoint.new(0.2,C.Acc),
+    ColorSequenceKeypoint.new(0.5,C.Purple),
+    ColorSequenceKeypoint.new(0.8,C.Acc2),
+    ColorSequenceKeypoint.new(1,Color3.fromRGB(0,0,0)),
+})
+
+local Topbar=Instance.new("Frame",Main)
+Topbar.Size=UDim2.new(1,0,0,46)
+Topbar.Position=UDim2.new(0,0,0,2)
+Topbar.BackgroundColor3=C.Panel
+Topbar.BorderSizePixel=0
+Cr(Topbar,14)
+local TopFix=Instance.new("Frame",Topbar)
+TopFix.Size=UDim2.new(1,0,0,14) TopFix.Position=UDim2.new(0,0,1,-14)
+TopFix.BackgroundColor3=C.Panel TopFix.BorderSizePixel=0
+
+local LogoDot=Instance.new("Frame",Topbar)
+LogoDot.Size=UDim2.new(0,8,0,8) LogoDot.Position=UDim2.new(0,14,0.5,-4)
+LogoDot.BackgroundColor3=C.Acc Cr(LogoDot,4)
+local LogoDotInner=Instance.new("Frame",LogoDot)
+LogoDotInner.Size=UDim2.new(0,4,0,4) LogoDotInner.Position=UDim2.new(0.5,-2,0.5,-2)
+LogoDotInner.BackgroundColor3=C.Purple Cr(LogoDotInner,2)
+
+local TitleLbl=Instance.new("TextLabel",Topbar)
+TitleLbl.Size=UDim2.new(1,-110,1,0) TitleLbl.Position=UDim2.new(0,26,0,0)
+TitleLbl.Text="CyRuZzZ Hub" TitleLbl.TextColor3=C.Text
+TitleLbl.Font=Enum.Font.GothamBold TitleLbl.TextSize=15
+TitleLbl.BackgroundTransparency=1 TitleLbl.TextXAlignment=Enum.TextXAlignment.Left
+
+local VerLbl=Instance.new("TextLabel",Topbar)
+VerLbl.Size=UDim2.new(0,50,0,14) VerLbl.Position=UDim2.new(0,26,1,-18)
+VerLbl.Text="v3.0 FINAL" VerLbl.TextColor3=C.Acc
+VerLbl.Font=Enum.Font.GothamSemibold VerLbl.TextSize=8
+VerLbl.BackgroundTransparency=1 VerLbl.TextXAlignment=Enum.TextXAlignment.Left
+
+local function MkTopBtn(txt,xOff,col,tcol)
+    local b=Instance.new("TextButton",Topbar)
+    b.Size=UDim2.new(0,26,0,26) b.Position=UDim2.new(1,xOff,0.5,-13)
+    b.Text=txt b.BackgroundColor3=col b.TextColor3=tcol or Color3.new(1,1,1)
+    b.Font=Enum.Font.GothamBold b.TextSize=12 b.BorderSizePixel=0
+    b.AutoButtonColor=false Cr(b,6) return b
+end
+local MinBtn=MkTopBtn("−",-62,C.CardH,C.Sub)
+local CloseBtn=MkTopBtn("✕",-30,C.Red)
+
+local TabBar=Instance.new("Frame",Main)
+TabBar.Size=UDim2.new(1,-14,0,30) TabBar.Position=UDim2.new(0,7,0,52)
+TabBar.BackgroundColor3=C.Dark Cr(TabBar,8)
+Sk(TabBar,C.Border,1)
+local TabLayout=Instance.new("UIListLayout",TabBar)
+TabLayout.FillDirection=Enum.FillDirection.Horizontal
+TabLayout.SortOrder=Enum.SortOrder.LayoutOrder TabLayout.Padding=UDim.new(0,2)
+Pad(TabBar,3,3,3,3)
+
+local ContentArea=Instance.new("Frame",Main)
+ContentArea.Size=UDim2.new(1,-14,1,-90)
+ContentArea.Position=UDim2.new(0,7,0,86)
+ContentArea.BackgroundTransparency=1
+
+local pages={}
+local tabBtns={}
+local tabDefs={
+    {name="MAIN", icon="⚡",col=C.Acc},
+    {name="MOVE", icon="🧭",col=C.Cyan},
+    {name="ESP",  icon="👁", col=C.Pink},
+    {name="SCAN", icon="🔍",col=C.Acc2},
+    {name="SOCIAL",icon="👥",col=C.Gold},
+    {name="INJECT",icon="🔌",col=C.Yellow},
+}
+for i,def in ipairs(tabDefs) do
+    local tb=Instance.new("TextButton",TabBar)
+    tb.Size=UDim2.new(1/6,-2,1,0)
+    tb.Text=def.icon
+    tb.Font=Enum.Font.GothamBold tb.TextSize=13
+    tb.BackgroundColor3=C.Card tb.TextColor3=C.Sub
+    tb.AutoButtonColor=false tb.LayoutOrder=i Cr(tb,5)
+    tabBtns[def.name]={btn=tb,def=def}
+    local page=Instance.new("Frame",ContentArea)
+    page.Size=UDim2.new(1,0,1,0) page.BackgroundTransparency=1 page.Visible=false
+    pages[def.name]=page
+end
+
+local activeTab=""
+local function SwitchTab(name)
+    if activeTab==name then return end
+    activeTab=name
+    for n,p in pairs(pages) do p.Visible=n==name end
+    for n,t in pairs(tabBtns) do
+        local on=n==name
+        Tw(t.btn,0.14,{BackgroundColor3=on and t.def.col or C.Card,TextColor3=on and Color3.new(1,1,1) or C.Sub})
+    end
+    mainStroke.Color=tabBtns[name] and tabBtns[name].def.col or C.Acc
 end
 for name,t in pairs(tabBtns) do
     t.btn.MouseButton1Click:Connect(function() SwitchTab(name) end)
 end
 
--- ============================================================
--- HELPER BUILDERS
--- ============================================================
 local function MkScroll(parent)
-    local sf = Instance.new("ScrollingFrame",parent)
-    sf.Size = UDim2.new(1,0,1,0) sf.BackgroundTransparency = 1 sf.BorderSizePixel = 0
-    sf.ScrollBarThickness = 3 sf.ScrollBarImageColor3 = C.Accent sf.CanvasSize = UDim2.new(0,0,0,0)
-    local vl = Instance.new("UIListLayout",sf)
-    vl.Padding = UDim.new(0,5) vl.SortOrder = Enum.SortOrder.LayoutOrder
-    vl.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    local pad = Instance.new("UIPadding",sf)
-    pad.PaddingTop = UDim.new(0,4) pad.PaddingBottom = UDim.new(0,4)
+    local sf=Instance.new("ScrollingFrame",parent)
+    sf.Size=UDim2.new(1,0,1,0) sf.BackgroundTransparency=1 sf.BorderSizePixel=0
+    sf.ScrollBarThickness=2 sf.ScrollBarImageColor3=C.Acc sf.CanvasSize=UDim2.new(0,0,0,0)
+    local vl=Instance.new("UIListLayout",sf)
+    vl.Padding=UDim.new(0,5) vl.SortOrder=Enum.SortOrder.LayoutOrder
+    vl.HorizontalAlignment=Enum.HorizontalAlignment.Center
+    Pad(sf,0,0,4,4)
     vl:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        sf.CanvasSize = UDim2.new(0,0,0,vl.AbsoluteContentSize.Y+12)
+        sf.CanvasSize=UDim2.new(0,0,0,vl.AbsoluteContentSize.Y+12)
     end)
-    return sf
+    return sf,vl
 end
 
-local function MkRow(parent,h,order)
-    local f = Instance.new("Frame",parent)
-    f.Size = UDim2.new(1,0,0,h) f.BackgroundColor3 = C.Card f.LayoutOrder = order or 0
-    Corner(f,8) return f
+local function MkCard(parent,h,order)
+    local f=Instance.new("Frame",parent)
+    f.Size=UDim2.new(1,-2,0,h) f.BackgroundColor3=C.Card
+    f.LayoutOrder=order or 0 f.BorderSizePixel=0
+    Cr(f,8) return f
 end
 
-local function SetToggle(btn,state,label,onCol,offCol)
-    onCol = onCol or C.Green offCol = offCol or C.Red
-    btn.Text = label..":  "..(state and "ON ✓" or "OFF")
-    Tween(btn,0.15,{BackgroundColor3 = state and onCol or offCol})
+local function MkToggle(parent,label,icon,onCol,order)
+    local card=MkCard(parent,38,order)
+    local btn=Instance.new("TextButton",card)
+    btn.Size=UDim2.new(1,-10,1,-10) btn.Position=UDim2.new(0,5,0,5)
+    btn.Text=icon.."  "..label..":  OFF"
+    btn.BackgroundColor3=C.Red btn.TextColor3=C.Text
+    btn.Font=Enum.Font.GothamSemibold btn.TextSize=12
+    btn.AutoButtonColor=false Cr(btn,6)
+    local function Set(on)
+        btn.Text=icon.."  "..label..":  "..(on and "ON ✓" or "OFF")
+        Tw(btn,0.15,{BackgroundColor3=on and (onCol or C.Green) or C.Red})
+    end
+    return btn,Set
 end
 
-local function MkToggleBtn(parent,label,col,offCol,order)
-    local row = MkRow(parent,34,order)
-    local btn = Instance.new("TextButton",row)
-    btn.Size = UDim2.new(1,-10,1,-10) btn.Position = UDim2.new(0,5,0,5)
-    btn.Text = label..":  OFF" btn.BackgroundColor3 = offCol or C.Red
-    btn.TextColor3 = C.Text btn.Font = Enum.Font.GothamSemibold btn.TextSize = 12
-    btn.AutoButtonColor = false Corner(btn,6)
-    return btn, row
+local function MkStat(parent,order)
+    local card=MkCard(parent,22,order) card.BackgroundTransparency=0.7
+    local lbl=Instance.new("TextLabel",card)
+    lbl.Size=UDim2.new(1,-10,1,0) lbl.Position=UDim2.new(0,8,0,0)
+    lbl.Text="Ready" lbl.TextColor3=C.Acc
+    lbl.Font=Enum.Font.Gotham lbl.TextSize=10
+    lbl.BackgroundTransparency=1 lbl.TextXAlignment=Enum.TextXAlignment.Left
+    return lbl
 end
 
-local function MkTextBtn(parent,txt,col,w,xPos,yPos,h)
-    local b = Instance.new("TextButton",parent)
-    b.Size = UDim2.new(w or 1,0,0,h or 28) b.Position = UDim2.new(xPos or 0,0,0,yPos or 0)
-    b.Text = txt b.BackgroundColor3 = col b.TextColor3 = C.Text
-    b.Font = Enum.Font.GothamSemibold b.TextSize = 11
-    b.AutoButtonColor = false Corner(b,6) return b
+local function MkInputRow(parent,placeholder,defaultVal,order)
+    local card=MkCard(parent,34,order)
+    local inp=Instance.new("TextBox",card)
+    inp.Size=UDim2.new(1,-10,1,-10) inp.Position=UDim2.new(0,5,0,5)
+    inp.PlaceholderText=placeholder inp.Text=defaultVal or ""
+    inp.BackgroundColor3=C.Input inp.TextColor3=C.Cyan
+    inp.Font=Enum.Font.Code inp.TextSize=11
+    inp.ClearTextOnFocus=false Cr(inp,6)
+    Pad(inp,8,8,0,0)
+    return inp
 end
 
--- ============================================================
--- PAGE: MAIN
--- ============================================================
-local mainScroll = MkScroll(pages["MAIN"])
-
-local speedRow = MkRow(mainScroll,36,1)
-local SpeedInp = Instance.new("TextBox",speedRow)
-SpeedInp.Size = UDim2.new(0,70,1,-10) SpeedInp.Position = UDim2.new(0,5,0,5)
-SpeedInp.Text = "120" SpeedInp.PlaceholderText = "Speed"
-SpeedInp.BackgroundColor3 = C.Input SpeedInp.TextColor3 = C.Text
-SpeedInp.Font = Enum.Font.Gotham SpeedInp.TextSize = 12
-SpeedInp.ClearTextOnFocus = false Corner(SpeedInp,6)
-
-local SpeedToggle = Instance.new("TextButton",speedRow)
-SpeedToggle.Size = UDim2.new(1,-84,1,-10) SpeedToggle.Position = UDim2.new(0,79,0,5)
-SpeedToggle.Text = "SPEED:  OFF" SpeedToggle.BackgroundColor3 = C.Red
-SpeedToggle.TextColor3 = C.Text SpeedToggle.Font = Enum.Font.GothamSemibold SpeedToggle.TextSize = 12
-SpeedToggle.AutoButtonColor = false Corner(SpeedToggle,6)
-
-local FlyToggle,   _ = MkToggleBtn(mainScroll,"✈  FLY",    C.Green,C.Red,2)
-local GhostToggle, _ = MkToggleBtn(mainScroll,"👻 GHOST",   C.Green,C.Red,3)
-local GodToggle,   _ = MkToggleBtn(mainScroll,"🛡  GODMODE",C.Green,C.Red,4)
-
-local sliderRow = MkRow(mainScroll,50,5)
-local SliderLbl = Instance.new("TextLabel",sliderRow)
-SliderLbl.Size = UDim2.new(1,-10,0,18) SliderLbl.Position = UDim2.new(0,8,0,4)
-SliderLbl.Text = "Offset Godmode: 15" SliderLbl.TextColor3 = C.Sub
-SliderLbl.Font = Enum.Font.Gotham SliderLbl.TextSize = 11
-SliderLbl.BackgroundTransparency = 1 SliderLbl.TextXAlignment = Enum.TextXAlignment.Left
-
-local SliderTrack = Instance.new("Frame",sliderRow)
-SliderTrack.Size = UDim2.new(1,-16,0,8) SliderTrack.Position = UDim2.new(0,8,0,30)
-SliderTrack.BackgroundColor3 = C.Input Corner(SliderTrack,4)
-local SliderFill = Instance.new("Frame",SliderTrack)
-SliderFill.Size = UDim2.new(0.25,0,1,0) SliderFill.BackgroundColor3 = C.Accent
-SliderFill.BorderSizePixel = 0 Corner(SliderFill,4)
-local SliderKnob = Instance.new("TextButton",SliderTrack)
-SliderKnob.Size = UDim2.new(0,16,0,16) SliderKnob.Position = UDim2.new(0.25,-8,0.5,-8)
-SliderKnob.Text = "" SliderKnob.BackgroundColor3 = C.Accent SliderKnob.ZIndex = 5
-SliderKnob.AutoButtonColor = false Corner(SliderKnob,8)
-
-local statRow = MkRow(mainScroll,26,6)
-statRow.BackgroundTransparency = 0.6
-local StatLbl = Instance.new("TextLabel",statRow)
-StatLbl.Size = UDim2.new(1,-10,1,0) StatLbl.Position = UDim2.new(0,8,0,0)
-StatLbl.Text = "⚡ Ready" StatLbl.TextColor3 = C.Accent
-StatLbl.Font = Enum.Font.Gotham StatLbl.TextSize = 11
-StatLbl.BackgroundTransparency = 1 StatLbl.TextXAlignment = Enum.TextXAlignment.Left
-
--- ============================================================
--- PAGE: ESP
--- ============================================================
-local espScroll = MkScroll(pages["ESP"])
-local EspObjToggle,_ = MkToggleBtn(espScroll,"🔵 ESP OBJECT", C.Accent2,C.Red,1)
-local EspAvaToggle,_ = MkToggleBtn(espScroll,"👤 ESP AVATAR",  C.Pink,  C.Red,2)
-local LockToggle,_   = MkToggleBtn(espScroll,"🎯 TARGET LOCK", C.Orange,C.Red,3)
-
-local hkRow = MkRow(espScroll,50,4) hkRow.BackgroundTransparency = 0.6
-local hkLbl = Instance.new("TextLabel",hkRow)
-hkLbl.Size = UDim2.new(1,-10,1,-8) hkLbl.Position = UDim2.new(0,8,0,4)
-hkLbl.Text = "Hotkeys:\n  T = Toggle Lock Nearest\n  G = Ganti Target Berikutnya"
-hkLbl.TextColor3 = C.Sub hkLbl.Font = Enum.Font.Gotham hkLbl.TextSize = 10
-hkLbl.BackgroundTransparency = 1 hkLbl.TextXAlignment = Enum.TextXAlignment.Left
-
-local espStatRow = MkRow(espScroll,26,5) espStatRow.BackgroundTransparency = 0.6
-local EspStatLbl = Instance.new("TextLabel",espStatRow)
-EspStatLbl.Size = UDim2.new(1,-10,1,0) EspStatLbl.Position = UDim2.new(0,8,0,0)
-EspStatLbl.Text = "ESP: Standby" EspStatLbl.TextColor3 = C.Cyan
-EspStatLbl.Font = Enum.Font.Gotham EspStatLbl.TextSize = 11
-EspStatLbl.BackgroundTransparency = 1 EspStatLbl.TextXAlignment = Enum.TextXAlignment.Left
-
--- ============================================================
--- PAGE: SCAN
--- ============================================================
-local scanPage = pages["SCAN"]
-
-local SearchBox = Instance.new("TextBox",scanPage)
-SearchBox.Size = UDim2.new(1,0,0,28) SearchBox.Position = UDim2.new(0,0,0,0)
-SearchBox.PlaceholderText = "Cari nama objek..."
-SearchBox.Text = "" SearchBox.BackgroundColor3 = C.Input SearchBox.TextColor3 = C.Text
-SearchBox.Font = Enum.Font.Gotham SearchBox.TextSize = 11 SearchBox.ClearTextOnFocus = false
-Corner(SearchBox,6)
-
-local ScanRefBtn  = MkTextBtn(scanPage,"SCAN",    C.Accent2,1/3,  0,   32,26)
-local ScanTeleBtn = MkTextBtn(scanPage,"TP",      C.Card,   1/3, 1/3,  32,26) ScanTeleBtn.TextColor3 = C.Sub
-local ScanEspBtn  = MkTextBtn(scanPage,"ESP",     C.Card,   1/3, 2/3,  32,26) ScanEspBtn.TextColor3  = C.Sub
-
-local FilterRow = Instance.new("Frame",scanPage)
-FilterRow.Size = UDim2.new(1,0,0,22) FilterRow.Position = UDim2.new(0,0,0,62)
-FilterRow.BackgroundTransparency = 1
-local FRowLayout = Instance.new("UIListLayout",FilterRow)
-FRowLayout.FillDirection = Enum.FillDirection.Horizontal FRowLayout.Padding = UDim.new(0,3)
-
-local filterActive = "ALL"
-local filterBtns   = {}
-for i,label in ipairs({"ALL","Player","Model","Part","NPC"}) do
-    local fb = Instance.new("TextButton",FilterRow)
-    fb.Size = UDim2.new(0,i==1 and 32 or 50,1,0)
-    fb.Text = label fb.Font = Enum.Font.GothamSemibold fb.TextSize = 9
-    fb.BackgroundColor3 = i==1 and C.Accent or C.Card
-    fb.TextColor3 = i==1 and Color3.new(1,1,1) or C.Sub
-    fb.AutoButtonColor = false fb.LayoutOrder = i Corner(fb,5)
-    filterBtns[label] = fb
+local function MkBtn(parent,txt,col,order,h)
+    local card=MkCard(parent,h or 34,order)
+    local btn=Instance.new("TextButton",card)
+    btn.Size=UDim2.new(1,-10,1,-10) btn.Position=UDim2.new(0,5,0,5)
+    btn.Text=txt btn.BackgroundColor3=col btn.TextColor3=C.Text
+    btn.Font=Enum.Font.GothamSemibold btn.TextSize=11
+    btn.AutoButtonColor=false Cr(btn,6)
+    return btn
 end
 
-local ScanStatus = Instance.new("TextLabel",scanPage)
-ScanStatus.Size = UDim2.new(1,0,0,13) ScanStatus.Position = UDim2.new(0,0,0,87)
-ScanStatus.Text = "Tekan SCAN untuk mulai" ScanStatus.TextColor3 = C.Sub
-ScanStatus.Font = Enum.Font.Gotham ScanStatus.TextSize = 10
-ScanStatus.BackgroundTransparency = 1 ScanStatus.TextXAlignment = Enum.TextXAlignment.Left
+local function MkDualBtn(parent,t1,c1,t2,c2,order)
+    local card=MkCard(parent,38,order)
+    local b1=Instance.new("TextButton",card)
+    b1.Size=UDim2.new(0.5,-8,1,-10) b1.Position=UDim2.new(0,5,0,5)
+    b1.Text=t1 b1.BackgroundColor3=c1 b1.TextColor3=C.Text
+    b1.Font=Enum.Font.GothamSemibold b1.TextSize=11 b1.AutoButtonColor=false Cr(b1,6)
+    local b2=Instance.new("TextButton",card)
+    b2.Size=UDim2.new(0.5,-8,1,-10) b2.Position=UDim2.new(0.5,3,0,5)
+    b2.Text=t2 b2.BackgroundColor3=c2 b2.TextColor3=C.Text
+    b2.Font=Enum.Font.GothamSemibold b2.TextSize=11 b2.AutoButtonColor=false Cr(b2,6)
+    return b1,b2
+end
 
-local ListFrame = Instance.new("ScrollingFrame",scanPage)
-ListFrame.Size = UDim2.new(1,0,1,-103) ListFrame.Position = UDim2.new(0,0,0,103)
-ListFrame.BackgroundColor3 = C.Input ListFrame.BorderSizePixel = 0
-ListFrame.ScrollBarThickness = 3 ListFrame.ScrollBarImageColor3 = C.Accent
-ListFrame.CanvasSize = UDim2.new(0,0,0,0) Corner(ListFrame,6)
-local ListLayout = Instance.new("UIListLayout",ListFrame)
-ListLayout.Padding = UDim.new(0,3) ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-local ListPad = Instance.new("UIPadding",ListFrame)
-ListPad.PaddingTop = UDim.new(0,4) ListPad.PaddingLeft = UDim.new(0,4) ListPad.PaddingRight = UDim.new(0,4)
-
--- ============================================================
--- PAGE: AUTO  — remote name bisa diedit, PICK dari scan
--- ============================================================
-local autoPage = pages["AUTO"]
-
--- Info banner
-local autoInfo = Instance.new("TextLabel",autoPage)
-autoInfo.Size = UDim2.new(1,0,0,22) autoInfo.Position = UDim2.new(0,0,0,0)
-autoInfo.Text = "🤖  Auto Farm — edit nama remote sesuai game"
-autoInfo.TextColor3 = C.Lime autoInfo.Font = Enum.Font.GothamSemibold autoInfo.TextSize = 10
-autoInfo.BackgroundColor3 = Color3.fromRGB(18,38,18) autoInfo.BackgroundTransparency = 0.2
-Corner(autoInfo,6)
-
--- Variabel untuk PICK: nama remote terakhir dari Remote Scanner
-local lastPickedRemote = ""  -- diisi saat user klik item di RemList nanti
-
--- ── Helper: buat 1 auto row (tinggi 76px) ──────────────────
--- Setiap row punya:
---   Baris 1: icon+label | dot status
---   Baris 2: [TextBox nama remote]  [PICK]
---   Baris 3: [interval] detik  [ON/OFF toggle]
-local autoRowList = {}  -- simpan semua row buat PICK broadcast
-
-local function MkAutoRow(parent, icon, label, defaultRemote, remoteType, yPos, defaultInterval)
-    local ROW_H = 82
-
-    local row = Instance.new("Frame",parent)
-    row.Size = UDim2.new(1,0,0,ROW_H) row.Position = UDim2.new(0,0,0,yPos)
-    row.BackgroundColor3 = C.Card Corner(row,8)
-
-    -- Baris 1: label + dot
-    local lbl = Instance.new("TextLabel",row)
-    lbl.Size = UDim2.new(1,-22,0,16) lbl.Position = UDim2.new(0,8,0,4)
-    lbl.Text = icon.."  "..label
-    lbl.TextColor3 = C.Text lbl.Font = Enum.Font.GothamSemibold lbl.TextSize = 11
-    lbl.BackgroundTransparency = 1 lbl.TextXAlignment = Enum.TextXAlignment.Left
-
-    local dot = Instance.new("Frame",row)
-    dot.Size = UDim2.new(0,8,0,8) dot.Position = UDim2.new(1,-14,0,6)
-    dot.BackgroundColor3 = C.Red Corner(dot,4)
-
-    -- Baris 2: remote name TextBox + PICK
-    local remBox = Instance.new("TextBox",row)
-    remBox.Size = UDim2.new(1,-52,0,22) remBox.Position = UDim2.new(0,6,0,24)
-    remBox.Text = defaultRemote remBox.PlaceholderText = "Nama remote..."
-    remBox.BackgroundColor3 = C.Input remBox.TextColor3 = C.Cyan
-    remBox.Font = Enum.Font.Code remBox.TextSize = 9
-    remBox.ClearTextOnFocus = false Corner(remBox,5)
-    local remBoxPad = Instance.new("UIPadding",remBox) remBoxPad.PaddingLeft = UDim.new(0,5)
-
-    local pickBtn = Instance.new("TextButton",row)
-    pickBtn.Size = UDim2.new(0,40,0,22) pickBtn.Position = UDim2.new(1,-46,0,24)
-    pickBtn.Text = "PICK" pickBtn.BackgroundColor3 = C.Accent2
-    pickBtn.TextColor3 = Color3.new(1,1,1) pickBtn.Font = Enum.Font.GothamSemibold pickBtn.TextSize = 9
-    pickBtn.AutoButtonColor = false Corner(pickBtn,5)
-
-    -- Baris 3: interval + toggle
-    local intBox = Instance.new("TextBox",row)
-    intBox.Size = UDim2.new(0,44,0,22) intBox.Position = UDim2.new(0,6,0,52)
-    intBox.Text = tostring(defaultInterval or 1) intBox.PlaceholderText = "s"
-    intBox.BackgroundColor3 = C.Input intBox.TextColor3 = C.Text
-    intBox.Font = Enum.Font.Gotham intBox.TextSize = 10
-    intBox.ClearTextOnFocus = false Corner(intBox,5)
-
-    local intLbl = Instance.new("TextLabel",row)
-    intLbl.Size = UDim2.new(0,20,0,22) intLbl.Position = UDim2.new(0,54,0,52)
-    intLbl.Text = "dtk" intLbl.TextColor3 = C.Sub
-    intLbl.Font = Enum.Font.Gotham intLbl.TextSize = 8 intLbl.BackgroundTransparency = 1
-
-    local toggleBtn = Instance.new("TextButton",row)
-    toggleBtn.Size = UDim2.new(1,-84,0,22) toggleBtn.Position = UDim2.new(0,80,0,52)
-    toggleBtn.Text = "OFF" toggleBtn.BackgroundColor3 = C.Red
-    toggleBtn.TextColor3 = C.Text toggleBtn.Font = Enum.Font.GothamSemibold toggleBtn.TextSize = 10
-    toggleBtn.AutoButtonColor = false Corner(toggleBtn,5)
-
-    -- PICK: isi remBox dengan remote yg terakhir dipilih dari scanner
-    pickBtn.MouseButton1Click:Connect(function()
-        if lastPickedRemote ~= "" then
-            remBox.Text = lastPickedRemote
-            Tween(pickBtn,0.12,{BackgroundColor3=C.Lime})
-            task.delay(0.8,function() Tween(pickBtn,0.12,{BackgroundColor3=C.Accent2}) end)
-        else
-            -- Kalau belum pick, kasih hint
-            remBox.PlaceholderText = "Scan remote dulu di tab REMOT!"
-            Tween(pickBtn,0.12,{BackgroundColor3=C.Red})
-            task.delay(1,function()
-                remBox.PlaceholderText = "Nama remote..."
-                Tween(pickBtn,0.12,{BackgroundColor3=C.Accent2})
-            end)
+local function MkSliderRow(parent,label,min,max,default,order)
+    local card=MkCard(parent,52,order)
+    local lbl=Instance.new("TextLabel",card)
+    lbl.Size=UDim2.new(1,-10,0,18) lbl.Position=UDim2.new(0,8,0,4)
+    lbl.Text=label..": "..default lbl.TextColor3=C.Sub
+    lbl.Font=Enum.Font.Gotham lbl.TextSize=10
+    lbl.BackgroundTransparency=1 lbl.TextXAlignment=Enum.TextXAlignment.Left
+    local track=Instance.new("Frame",card)
+    track.Size=UDim2.new(1,-16,0,8) track.Position=UDim2.new(0,8,0,32)
+    track.BackgroundColor3=C.Input Cr(track,4)
+    local fill=Instance.new("Frame",track)
+    local pct=(default-min)/(max-min)
+    fill.Size=UDim2.new(pct,0,1,0) fill.BackgroundColor3=C.Acc
+    fill.BorderSizePixel=0 Cr(fill,4)
+    local knob=Instance.new("TextButton",track)
+    knob.Size=UDim2.new(0,16,0,16) knob.Position=UDim2.new(pct,-8,0.5,-8)
+    knob.Text="" knob.BackgroundColor3=C.Acc knob.ZIndex=5
+    knob.AutoButtonColor=false Cr(knob,8)
+    local dragging=false
+    local val=default
+    knob.MouseButton1Down:Connect(function() dragging=true end)
+    AddConn(UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end
+    end))
+    AddConn(RunService.Heartbeat:Connect(function()
+        if dragging then
+            local rel=UserInputService:GetMouseLocation().X-track.AbsolutePosition.X
+            local p2=math.clamp(rel/track.AbsoluteSize.X,0,1)
+            val=math.floor(Lerp(min,max,p2))
+            knob.Position=UDim2.new(p2,-8,0.5,-8)
+            fill.Size=UDim2.new(p2,0,1,0)
+            lbl.Text=label..": "..val
         end
-    end)
+    end))
+    return card,lbl,fill,knob,function() return val end
+end
 
-    -- Toggle ON/OFF loop
-    local isOn = false
-    toggleBtn.MouseButton1Click:Connect(function()
-        isOn = not isOn
-        if isOn then
-            local remoteName = remBox.Text
-            if remoteName == "" then
-                isOn = false
-                lbl.Text = icon.."  "..label.."  ⚠️ Isi nama remote!"
-                lbl.TextColor3 = C.Red
-                return
-            end
-            local remote = FindRemote(remoteName)
-            if not remote then
-                isOn = false
-                lbl.Text = icon.."  "..label.."  ❌ '"..remoteName.."' not found"
-                lbl.TextColor3 = C.Red
-                Tween(toggleBtn,0.15,{BackgroundColor3=C.Red})
-                return
-            end
-            lbl.Text = icon.."  "..label.."  ✓ "..remoteName
-            lbl.TextColor3 = C.Lime
-            toggleBtn.Text = "ON ✓"
-            Tween(toggleBtn,0.15,{BackgroundColor3=C.Lime})
-            Tween(dot,0.15,{BackgroundColor3=C.Lime})
+local function MkSectionHeader(parent,txt,col,order)
+    local card=MkCard(parent,22,order)
+    card.BackgroundTransparency=0.5
+    local lbl=Instance.new("TextLabel",card)
+    lbl.Size=UDim2.new(1,-10,1,0) lbl.Position=UDim2.new(0,8,0,0)
+    lbl.Text=txt lbl.TextColor3=col or C.Acc
+    lbl.Font=Enum.Font.GothamBold lbl.TextSize=10
+    lbl.BackgroundTransparency=1 lbl.TextXAlignment=Enum.TextXAlignment.Left
+    return card
+end
+local mainScroll,_=MkScroll(pages["MAIN"])
+MkSectionHeader(mainScroll,"⚡  MOVEMENT",C.Acc,1)
 
-            task.spawn(function()
-                while isOn do
-                    pcall(function()
-                        if remoteType == "Event" then remote:FireServer()
-                        elseif remoteType == "Function" then remote:InvokeServer() end
-                    end)
-                    local iv = tonumber(intBox.Text) or 1
-                    task.wait(math.max(0.1, iv))
-                end
-            end)
-        else
-            isOn = false
-            toggleBtn.Text = "OFF"
-            Tween(toggleBtn,0.15,{BackgroundColor3=C.Red})
-            Tween(dot,0.15,{BackgroundColor3=C.Red})
-            lbl.Text = icon.."  "..label
-            lbl.TextColor3 = C.Text
+local speedCard=MkCard(mainScroll,38,2)
+local speedInp=Instance.new("TextBox",speedCard)
+speedInp.Size=UDim2.new(0,72,1,-10) speedInp.Position=UDim2.new(0,5,0,5)
+speedInp.Text="120" speedInp.PlaceholderText="Speed"
+speedInp.BackgroundColor3=C.Input speedInp.TextColor3=C.Cyan
+speedInp.Font=Enum.Font.GothamBold speedInp.TextSize=13
+speedInp.ClearTextOnFocus=false Cr(speedInp,6)
+Pad(speedInp,6,0,0,0)
+local speedToggle=Instance.new("TextButton",speedCard)
+speedToggle.Size=UDim2.new(1,-86,1,-10) speedToggle.Position=UDim2.new(0,81,0,5)
+speedToggle.Text="⚡ SPEED:  OFF" speedToggle.BackgroundColor3=C.Red
+speedToggle.TextColor3=C.Text speedToggle.Font=Enum.Font.GothamSemibold speedToggle.TextSize=12
+speedToggle.AutoButtonColor=false Cr(speedToggle,6)
+
+local flyBtn,setFly=MkToggle(mainScroll,"FLY","✈",C.Green,3)
+local noclipBtn,setNoclip=MkToggle(mainScroll,"NOCLIP","👻",Color3.fromRGB(100,60,220),4)
+local infJumpBtn,setInfJump=MkToggle(mainScroll,"INFINITE JUMP","🦘",Color3.fromRGB(255,140,0),5)
+
+MkSectionHeader(mainScroll,"🛡  COMBAT / STEALTH",C.Purple,6)
+local godBtn,setGod=MkToggle(mainScroll,"GODMODE","🛡",C.Orange,7)
+local ghostBtn,setGhost=MkToggle(mainScroll,"GHOST (Full Invis)","🌫",Color3.fromRGB(80,200,200),8)
+local aimbotBtn,setAimbot=MkToggle(mainScroll,"AIMBOT LOCK","🎯",C.Pink,9)
+
+MkSectionHeader(mainScroll,"🌟  VISUAL",C.Cyan,10)
+local fullbrightBtn,setFullbright=MkToggle(mainScroll,"FULL BRIGHT","💡",C.Yellow,11)
+local freecamBtn,setFreecam=MkToggle(mainScroll,"FREECAM","📷",C.Teal,12)
+local clickTPBtn,setClickTP=MkToggle(mainScroll,"CLICK TP","🖱",C.Acc2,13)
+local instantEBtn,setInstantE=MkToggle(mainScroll,"INSTANT INTERACT (E)","⚡",C.Lime,14)
+local mainStat=MkStat(mainScroll,16)
+
+local moveScroll,_=MkScroll(pages["MOVE"])
+MkSectionHeader(moveScroll,"📍  CURRENT POSITION",C.Cyan,1)
+local posDisplay=MkInputRow(moveScroll,"x, y, z","Belum diambil",2)
+local getPosBtn,copyPosBtn=MkDualBtn(moveScroll,"📍 GET POS",C.Cyan,"📋 COPY",C.Card,3)
+
+MkSectionHeader(moveScroll,"📌  TELEPORT 1",C.Acc,4)
+local tp1Inp=MkInputRow(moveScroll,"x, y, z  (ketik atau SET)","",5)
+local tp1SetBtn,tp1GoBtn=MkDualBtn(moveScroll,"📍 SET",C.Card,"🚀 TP 1",C.Acc,6)
+
+MkSectionHeader(moveScroll,"📌  TELEPORT 2",C.Pink,7)
+local tp2Inp=MkInputRow(moveScroll,"x, y, z","",8)
+local tp2SetBtn,tp2GoBtn=MkDualBtn(moveScroll,"📍 SET",C.Card,"🚀 TP 2",C.Pink,9)
+
+MkSectionHeader(moveScroll,"↩️  BACK / HISTORY",C.Gold,10)
+local backBtn=MkBtn(moveScroll,"↩️  BACK  (kembali ke posisi sebelum TP)",C.Card,11)
+backBtn.TextColor3=C.Gold
+Sk(backBtn.Parent,C.Gold,1)
+local moveStat=MkStat(moveScroll,12)
+local originPos=nil
+local backPos=nil
+
+local function ParseCoord(str)
+    if not str or str=="" then return nil end
+    local s=str:gsub(","," ")
+    local t={}
+    for v in s:gmatch("[%-%.%d]+") do table.insert(t,v) end
+    return tonumber(t[1]),tonumber(t[2]),tonumber(t[3])
+end
+local function GetCurrentPos()
+    local hrp=HRP()
+    if not hrp then return nil end
+    return hrp.Position
+end
+local function PosToStr(p)
+    if not p then return "" end
+    return string.format("%.1f, %.1f, %.1f",p.X,p.Y,p.Z)
+end
+local function DoTP(x,y,z)
+    local hrp=HRP()
+    if not hrp then return false end
+    if not x or not y or not z then return false end
+    backPos=hrp.Position
+    hrp.CFrame=CFrame.new(x,y+2,z)
+    return true
+end
+
+getPosBtn.MouseButton1Click:Connect(function()
+    local p=GetCurrentPos()
+    if p then
+        posDisplay.Text=PosToStr(p)
+        moveStat.Text="✅ Posisi diambil" moveStat.TextColor3=C.Lime
+        Tw(getPosBtn,0.12,{BackgroundColor3=C.Lime,TextColor3=Color3.new(0,0,0)})
+        task.delay(1,function() Tw(getPosBtn,0.12,{BackgroundColor3=C.Cyan,TextColor3=C.Text}) end)
+    end
+end)
+copyPosBtn.MouseButton1Click:Connect(function()
+    if posDisplay.Text=="" or posDisplay.Text=="Belum diambil" then
+        moveStat.Text="⚠️ GET dulu!" moveStat.TextColor3=C.Red return
+    end
+    if setclipboard then setclipboard(posDisplay.Text) end
+    moveStat.Text="📋 Disalin!" moveStat.TextColor3=C.Lime
+    Tw(copyPosBtn,0.12,{BackgroundColor3=C.Green,TextColor3=Color3.new(1,1,1)})
+    task.delay(1.5,function() Tw(copyPosBtn,0.12,{BackgroundColor3=C.Card,TextColor3=C.Sub}) end)
+end)
+tp1SetBtn.MouseButton1Click:Connect(function()
+    local p=GetCurrentPos()
+    if p then tp1Inp.Text=PosToStr(p) moveStat.Text="✅ TP1 di-set" moveStat.TextColor3=C.Lime end
+end)
+tp2SetBtn.MouseButton1Click:Connect(function()
+    local p=GetCurrentPos()
+    if p then tp2Inp.Text=PosToStr(p) moveStat.Text="✅ TP2 di-set" moveStat.TextColor3=C.Lime end
+end)
+tp1GoBtn.MouseButton1Click:Connect(function()
+    local x,y,z=ParseCoord(tp1Inp.Text)
+    if DoTP(x,y,z) then moveStat.Text="🚀 TP1 berhasil" moveStat.TextColor3=C.Lime
+    else moveStat.Text="⚠️ Koordinat tidak valid" moveStat.TextColor3=C.Red end
+end)
+tp2GoBtn.MouseButton1Click:Connect(function()
+    local x,y,z=ParseCoord(tp2Inp.Text)
+    if DoTP(x,y,z) then moveStat.Text="🚀 TP2 berhasil" moveStat.TextColor3=C.Lime
+    else moveStat.Text="⚠️ Koordinat tidak valid" moveStat.TextColor3=C.Red end
+end)
+backBtn.MouseButton1Click:Connect(function()
+    if backPos then
+        local hrp=HRP()
+        if hrp then
+            local curr=hrp.Position
+            hrp.CFrame=CFrame.new(backPos+Vector3.new(0,2,0))
+            backPos=curr
+            moveStat.Text="↩️ Kembali!" moveStat.TextColor3=C.Gold
+            Tw(backBtn,0.12,{BackgroundColor3=C.Gold,TextColor3=Color3.new(0,0,0)})
+            task.delay(1,function() Tw(backBtn,0.12,{BackgroundColor3=C.Card,TextColor3=C.Gold}) end)
         end
-    end)
-
-    table.insert(autoRowList, {row=row, remBox=remBox})
-    return row
-end
-
--- 5 Auto features
-local autoFeatures = {
-    { icon="♻️",  label="Auto Rebirth",    remote="RequestRebirth",     type="Event", interval=3   },
-    { icon="💰",  label="Auto Sell",        remote="RequestSell",        type="Event", interval=2   },
-    { icon="🪙",  label="Auto Collect",     remote="PickupEvent",        type="Event", interval=0.5 },
-    { icon="🏗️", label="Auto Base Up",     remote="RequestBaseUpgrade", type="Event", interval=5   },
-    { icon="📦",  label="Auto Slot Up",     remote="RequestSlotUpgrade", type="Event", interval=5   },
-}
-
-for i, af in ipairs(autoFeatures) do
-    MkAutoRow(autoPage, af.icon, af.label, af.remote, af.type, 28+(i-1)*88, af.interval)
-end
-
-local autoHint = Instance.new("TextLabel",autoPage)
-autoHint.Size = UDim2.new(1,0,0,24) autoHint.Position = UDim2.new(0,0,0, 28+#autoFeatures*88+2)
-autoHint.Text = "💡 PICK = ambil dari Remote Scanner\n    Edit langsung jika nama remote berbeda"
-autoHint.TextColor3 = C.Sub autoHint.Font = Enum.Font.Gotham autoHint.TextSize = 8
-autoHint.BackgroundTransparency = 1 autoHint.TextXAlignment = Enum.TextXAlignment.Left
-autoHint.TextWrapped = true
-
--- ============================================================
--- PAGE: REMOT  (Magnet + Remote Scanner + Plugin Injector)
--- ============================================================
-local remotePage = pages["REMOT"]
-local remScroll  = MkScroll(remotePage)
-
--- == MAGNET SECTION ==
-local magSection = MkRow(remScroll,130,1)
-
-local magTitle = Instance.new("TextLabel",magSection)
-magTitle.Size = UDim2.new(1,-10,0,16) magTitle.Position = UDim2.new(0,8,0,4)
-magTitle.Text = "🧲  ITEM MAGNET" magTitle.TextColor3 = C.Pink
-magTitle.Font = Enum.Font.GothamBold magTitle.TextSize = 12
-magTitle.BackgroundTransparency = 1 magTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-local RemoteInp = Instance.new("TextBox",magSection)
-RemoteInp.Size = UDim2.new(1,-16,0,24) RemoteInp.Position = UDim2.new(0,8,0,24)
-RemoteInp.Text = "" RemoteInp.PlaceholderText = "Nama RemoteEvent (opsional)..."
-RemoteInp.BackgroundColor3 = C.Input RemoteInp.TextColor3 = C.Text
-RemoteInp.Font = Enum.Font.Gotham RemoteInp.TextSize = 10
-RemoteInp.ClearTextOnFocus = false Corner(RemoteInp,6)
-
-local ItemNameInp = Instance.new("TextBox",magSection)
-ItemNameInp.Size = UDim2.new(1,-16,0,24) ItemNameInp.Position = UDim2.new(0,8,0,52)
-ItemNameInp.Text = "" ItemNameInp.PlaceholderText = "Filter nama item/brainrot (kosong = semua)..."
-ItemNameInp.BackgroundColor3 = C.Input ItemNameInp.TextColor3 = C.Text
-ItemNameInp.Font = Enum.Font.Gotham ItemNameInp.TextSize = 10
-ItemNameInp.ClearTextOnFocus = false Corner(ItemNameInp,6)
-
-local RadiusInp = Instance.new("TextBox",magSection)
-RadiusInp.Size = UDim2.new(0.4,-12,0,24) RadiusInp.Position = UDim2.new(0,8,0,80)
-RadiusInp.Text = "50" RadiusInp.PlaceholderText = "Radius"
-RadiusInp.BackgroundColor3 = C.Input RadiusInp.TextColor3 = C.Text
-RadiusInp.Font = Enum.Font.Gotham RadiusInp.TextSize = 10
-RadiusInp.ClearTextOnFocus = false Corner(RadiusInp,6)
-
-local MagnetToggle = Instance.new("TextButton",magSection)
-MagnetToggle.Size = UDim2.new(0.57,-4,0,24) MagnetToggle.Position = UDim2.new(0.43,0,0,80)
-MagnetToggle.Text = "🧲 MAGNET: OFF" MagnetToggle.BackgroundColor3 = C.Red
-MagnetToggle.TextColor3 = C.Text MagnetToggle.Font = Enum.Font.GothamSemibold MagnetToggle.TextSize = 10
-MagnetToggle.AutoButtonColor = false Corner(MagnetToggle,6)
-
-local MagStatusLbl = Instance.new("TextLabel",magSection)
-MagStatusLbl.Size = UDim2.new(1,-16,0,12) MagStatusLbl.Position = UDim2.new(0,8,0,108)
-MagStatusLbl.Text = "Isi remote lalu aktifkan" MagStatusLbl.TextColor3 = C.Sub
-MagStatusLbl.Font = Enum.Font.Gotham MagStatusLbl.TextSize = 9
-MagStatusLbl.BackgroundTransparency = 1 MagStatusLbl.TextXAlignment = Enum.TextXAlignment.Left
-
--- == REMOTE SCANNER SECTION ==
-local remSection = MkRow(remScroll,140,2)
-
-local remTitle = Instance.new("TextLabel",remSection)
-remTitle.Size = UDim2.new(1,-10,0,16) remTitle.Position = UDim2.new(0,8,0,4)
-remTitle.Text = "📡  REMOTE SCANNER" remTitle.TextColor3 = C.Accent
-remTitle.Font = Enum.Font.GothamBold remTitle.TextSize = 12
-remTitle.BackgroundTransparency = 1 remTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-local RemScanBtn = Instance.new("TextButton",remSection)
-RemScanBtn.Size = UDim2.new(0.48,-4,0,24) RemScanBtn.Position = UDim2.new(0,8,0,24)
-RemScanBtn.Text = "SCAN REMOTE" RemScanBtn.BackgroundColor3 = C.Accent
-RemScanBtn.TextColor3 = Color3.new(1,1,1) RemScanBtn.Font = Enum.Font.GothamSemibold RemScanBtn.TextSize = 10
-RemScanBtn.AutoButtonColor = false Corner(RemScanBtn,6)
-
-local RemCopyBtn = Instance.new("TextButton",remSection)
-RemCopyBtn.Size = UDim2.new(0.48,-4,0,24) RemCopyBtn.Position = UDim2.new(0.52,-4,0,24)
-RemCopyBtn.Text = "COPY 📋" RemCopyBtn.BackgroundColor3 = C.Card
-RemCopyBtn.TextColor3 = C.Sub RemCopyBtn.Font = Enum.Font.GothamSemibold RemCopyBtn.TextSize = 10
-RemCopyBtn.AutoButtonColor = false Corner(RemCopyBtn,6)
-
-local RemStatus = Instance.new("TextLabel",remSection)
-RemStatus.Size = UDim2.new(1,-16,0,12) RemStatus.Position = UDim2.new(0,8,0,52)
-RemStatus.Text = "Tekan SCAN REMOTE" RemStatus.TextColor3 = C.Sub
-RemStatus.Font = Enum.Font.Gotham RemStatus.TextSize = 9
-RemStatus.BackgroundTransparency = 1 RemStatus.TextXAlignment = Enum.TextXAlignment.Left
-
-local RemList = Instance.new("ScrollingFrame",remSection)
-RemList.Size = UDim2.new(1,-16,0,72) RemList.Position = UDim2.new(0,8,0,66)
-RemList.BackgroundColor3 = C.Input RemList.BorderSizePixel = 0
-RemList.ScrollBarThickness = 3 RemList.ScrollBarImageColor3 = C.Accent
-RemList.CanvasSize = UDim2.new(0,0,0,0) Corner(RemList,6)
-local RemListLayout = Instance.new("UIListLayout",RemList)
-RemListLayout.Padding = UDim.new(0,2) RemListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-local RemListPad = Instance.new("UIPadding",RemList)
-RemListPad.PaddingTop = UDim.new(0,3) RemListPad.PaddingLeft = UDim.new(0,4) RemListPad.PaddingRight = UDim.new(0,4)
-
--- ============================================================
--- PLUGIN LIBRARY + INJECTOR  (V2.2)
--- ============================================================
-
--- Storage plugin: simpan di _G supaya bertahan walau inject ulang hub
-if not _G.CyPluginLib then _G.CyPluginLib = {} end
-local PluginLib = _G.CyPluginLib  -- { [nama] = kode }
-
--- ── SECTION: PLUGIN LIBRARY ──────────────────────────────────
-local libSection = MkRow(remScroll,190,3)
-
-local libTitle = Instance.new("TextLabel",libSection)
-libTitle.Size = UDim2.new(1,-10,0,16) libTitle.Position = UDim2.new(0,8,0,4)
-libTitle.Text = "📚  PLUGIN LIBRARY" libTitle.TextColor3 = C.Yellow
-libTitle.Font = Enum.Font.GothamBold libTitle.TextSize = 12
-libTitle.BackgroundTransparency = 1 libTitle.TextXAlignment = Enum.TextXAlignment.Left
-
--- Kotak nama plugin
-local libNameBox = Instance.new("TextBox",libSection)
-libNameBox.Size = UDim2.new(1,-16,0,24) libNameBox.Position = UDim2.new(0,8,0,24)
-libNameBox.Text = "" libNameBox.PlaceholderText = "Nama plugin (cth: BrainrotHunter)"
-libNameBox.BackgroundColor3 = C.Input libNameBox.TextColor3 = C.Yellow
-libNameBox.Font = Enum.Font.GothamSemibold libNameBox.TextSize = 10
-libNameBox.ClearTextOnFocus = false Corner(libNameBox,5)
-local lnp = Instance.new("UIPadding",libNameBox) lnp.PaddingLeft = UDim.new(0,6)
-
--- Tombol SAVE + DELETE
-local LibSaveBtn = Instance.new("TextButton",libSection)
-LibSaveBtn.Size = UDim2.new(0.48,-4,0,22) LibSaveBtn.Position = UDim2.new(0,8,0,52)
-LibSaveBtn.Text = "💾 SAVE" LibSaveBtn.BackgroundColor3 = Color3.fromRGB(30,80,30)
-LibSaveBtn.TextColor3 = C.Lime LibSaveBtn.Font = Enum.Font.GothamSemibold LibSaveBtn.TextSize = 10
-LibSaveBtn.AutoButtonColor = false Corner(LibSaveBtn,5)
-Stroke(LibSaveBtn,C.Lime,1)
-
-local LibDelBtn = Instance.new("TextButton",libSection)
-LibDelBtn.Size = UDim2.new(0.48,-4,0,22) LibDelBtn.Position = UDim2.new(0.52,-4,0,52)
-LibDelBtn.Text = "🗑 DELETE" LibDelBtn.BackgroundColor3 = C.Card
-LibDelBtn.TextColor3 = C.Red LibDelBtn.Font = Enum.Font.GothamSemibold LibDelBtn.TextSize = 10
-LibDelBtn.AutoButtonColor = false Corner(LibDelBtn,5)
-Stroke(LibDelBtn,C.Red,1)
-
-local LibStatus = Instance.new("TextLabel",libSection)
-LibStatus.Size = UDim2.new(1,-16,0,12) LibStatus.Position = UDim2.new(0,8,0,78)
-LibStatus.Text = "Simpan kode inject ke library" LibStatus.TextColor3 = C.Sub
-LibStatus.Font = Enum.Font.Gotham LibStatus.TextSize = 9
-LibStatus.BackgroundTransparency = 1 LibStatus.TextXAlignment = Enum.TextXAlignment.Left
-
--- List plugin tersimpan
-local LibList = Instance.new("ScrollingFrame",libSection)
-LibList.Size = UDim2.new(1,-16,0,90) LibList.Position = UDim2.new(0,8,0,94)
-LibList.BackgroundColor3 = C.Input LibList.BorderSizePixel = 0
-LibList.ScrollBarThickness = 3 LibList.ScrollBarImageColor3 = C.Yellow
-LibList.CanvasSize = UDim2.new(0,0,0,0) Corner(LibList,6)
-local LibLL = Instance.new("UIListLayout",LibList)
-LibLL.Padding = UDim.new(0,2) LibLL.SortOrder = Enum.SortOrder.LayoutOrder
-local LibPad = Instance.new("UIPadding",LibList)
-LibPad.PaddingTop = UDim.new(0,3) LibPad.PaddingLeft = UDim.new(0,3) LibPad.PaddingRight = UDim.new(0,3)
-
--- Referensi ke InjectBox (didefinisikan setelah ini, forward declare)
-local InjectBox  -- will be assigned below
-
--- Rebuild library list
-local function RebuildLibList()
-    for _,c in pairs(LibList:GetChildren()) do
-        if not c:IsA("UIListLayout") and not c:IsA("UIPadding") then c:Destroy() end
-    end
-    local count = 0
-    for name,_ in pairs(PluginLib) do
-        count += 1
-        local item = Instance.new("Frame",LibList)
-        item.Size = UDim2.new(1,0,0,26) item.BackgroundColor3 = C.Card
-        item.BorderSizePixel = 0 item.LayoutOrder = count Corner(item,5)
-
-        -- Icon + nama
-        local nameLbl = Instance.new("TextLabel",item)
-        nameLbl.Size = UDim2.new(1,-58,1,0) nameLbl.Position = UDim2.new(0,6,0,0)
-        nameLbl.Text = "📌 "..name nameLbl.TextColor3 = C.Yellow
-        nameLbl.Font = Enum.Font.GothamSemibold nameLbl.TextSize = 10
-        nameLbl.BackgroundTransparency = 1 nameLbl.TextXAlignment = Enum.TextXAlignment.Left
-        nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
-
-        -- Tombol LOAD
-        local loadBtn = Instance.new("TextButton",item)
-        loadBtn.Size = UDim2.new(0,50,1,-6) loadBtn.Position = UDim2.new(1,-54,0,3)
-        loadBtn.Text = "LOAD" loadBtn.BackgroundColor3 = C.Accent
-        loadBtn.TextColor3 = Color3.new(1,1,1) loadBtn.Font = Enum.Font.GothamSemibold loadBtn.TextSize = 9
-        loadBtn.AutoButtonColor = false Corner(loadBtn,4)
-
-        local savedName = name  -- capture
-        loadBtn.MouseButton1Click:Connect(function()
-            -- Isi ke InjectBox dan isi nama
-            if InjectBox then InjectBox.Text = PluginLib[savedName] or "" end
-            libNameBox.Text = savedName
-            LibStatus.Text = "✅ '"..savedName.."' dimuat ke injector"
-            LibStatus.TextColor3 = C.Lime
-            Tween(loadBtn,0.12,{BackgroundColor3=C.Lime})
-            task.delay(0.8,function() Tween(loadBtn,0.12,{BackgroundColor3=C.Accent}) end)
-        end)
-
-        -- Long-press nama untuk preview kode di console
-        nameLbl.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton2 then
-                print("=== Plugin: "..savedName.." ===")
-                print(PluginLib[savedName])
-            end
-        end)
-    end
-    LibList.CanvasSize = UDim2.new(0,0,0,(count*28)+6)
-    if count == 0 then
-        LibStatus.Text = "Library kosong — simpan plugin dulu"
-        LibStatus.TextColor3 = C.Sub
     else
-        LibStatus.Text = count.." plugin tersimpan"
-        LibStatus.TextColor3 = C.Sub
-    end
-end
-
--- SAVE: simpan kode dari InjectBox dengan nama dari libNameBox
-LibSaveBtn.MouseButton1Click:Connect(function()
-    local name = libNameBox.Text
-    if name == "" then
-        LibStatus.Text = "⚠️ Isi nama plugin dulu!"
-        LibStatus.TextColor3 = C.Red return
-    end
-    local code = InjectBox and InjectBox.Text or ""
-    if code == "" then
-        LibStatus.Text = "⚠️ Kotak kode kosong!"
-        LibStatus.TextColor3 = C.Red return
-    end
-    PluginLib[name] = code
-    LibStatus.Text = "💾 '"..name.."' tersimpan!"
-    LibStatus.TextColor3 = C.Lime
-    Tween(LibSaveBtn,0.15,{BackgroundColor3=Color3.fromRGB(40,120,40)})
-    task.delay(1,function() Tween(LibSaveBtn,0.15,{BackgroundColor3=Color3.fromRGB(30,80,30)}) end)
-    RebuildLibList()
-end)
-
--- DELETE: hapus plugin dengan nama di box
-LibDelBtn.MouseButton1Click:Connect(function()
-    local name = libNameBox.Text
-    if name == "" then
-        LibStatus.Text = "⚠️ Isi nama yang mau dihapus"
-        LibStatus.TextColor3 = C.Red return
-    end
-    if PluginLib[name] then
-        PluginLib[name] = nil
-        LibStatus.Text = "🗑 '"..name.."' dihapus"
-        LibStatus.TextColor3 = C.Orange
-        libNameBox.Text = ""
-        RebuildLibList()
-    else
-        LibStatus.Text = "⚠️ '"..name.."' tidak ada di library"
-        LibStatus.TextColor3 = C.Red
+        moveStat.Text="⚠️ Belum ada posisi back" moveStat.TextColor3=C.Red
     end
 end)
 
--- Isi nama library dari contoh
-local function AddBuiltins()
-    -- Plugin bawaan: TP Manager (kode mini, tidak butuh paste manual)
-    if not PluginLib["📍 TP Manager"] then
-        PluginLib["📍 TP Manager"] = [[
--- CyRuZzz TP Plugin — paste lengkap CyTP_Plugin.lua di sini
-print("Load CyTP_Plugin.lua dulu dari file!")
-]]
-    end
-    RebuildLibList()
-end
-AddBuiltins()
+local espScroll,_=MkScroll(pages["ESP"])
+MkSectionHeader(espScroll,"👁  ESP VISUALS",C.Pink,1)
+local espObjBtn,setEspObj=MkToggle(espScroll,"ESP OBJECTS","🔵",C.Acc2,2)
+local espPlayersBtn,setEspPlayers=MkToggle(espScroll,"ESP PLAYERS","👤",C.Pink,3)
+local lockBtn,setLock=MkToggle(espScroll,"TARGET LOCK CAM","🎯",C.Orange,4)
 
--- ── SECTION: PLUGIN INJECTOR ─────────────────────────────────
-local injectSection = MkRow(remScroll,168,4)
+local hkCard=MkCard(espScroll,46,5) hkCard.BackgroundTransparency=0.6
+local hkLbl=Instance.new("TextLabel",hkCard)
+hkLbl.Size=UDim2.new(1,-10,1,0) hkLbl.Position=UDim2.new(0,8,0,0)
+hkLbl.Text="T = Toggle Lock Nearest   G = Next Target\nAimbot di tab MAIN" hkLbl.TextColor3=C.Sub
+hkLbl.Font=Enum.Font.Gotham hkLbl.TextSize=9 hkLbl.BackgroundTransparency=1
+hkLbl.TextXAlignment=Enum.TextXAlignment.Left hkLbl.TextWrapped=true
 
-local injectTitle = Instance.new("TextLabel",injectSection)
-injectTitle.Size = UDim2.new(1,-10,0,16) injectTitle.Position = UDim2.new(0,8,0,4)
-injectTitle.Text = "🔌  PLUGIN INJECTOR" injectTitle.TextColor3 = C.Yellow
-injectTitle.Font = Enum.Font.GothamBold injectTitle.TextSize = 12
-injectTitle.BackgroundTransparency = 1 injectTitle.TextXAlignment = Enum.TextXAlignment.Left
+local espStat=MkStat(espScroll,6)
 
-local injectSubLbl = Instance.new("TextLabel",injectSection)
-injectSubLbl.Size = UDim2.new(1,-16,0,14) injectSubLbl.Position = UDim2.new(0,8,0,22)
-injectSubLbl.Text = "Paste kode → SAVE ke library → INJECT kapanpun"
-injectSubLbl.TextColor3 = C.Sub injectSubLbl.Font = Enum.Font.Gotham injectSubLbl.TextSize = 9
-injectSubLbl.BackgroundTransparency = 1 injectSubLbl.TextXAlignment = Enum.TextXAlignment.Left
+local espContainer=Instance.new("Folder",workspace) espContainer.Name="_CyESP"
+local espObjects={} local espPlayers={} local scanEspMap={}
+local currentHL=nil
+local lockTarget=nil
 
--- Kotak kode
-InjectBox = Instance.new("TextBox",injectSection)
-InjectBox.Size = UDim2.new(1,-16,0,80) InjectBox.Position = UDim2.new(0,8,0,38)
-InjectBox.Text = ""
-InjectBox.PlaceholderText = "-- Paste kode plugin di sini\n-- Lalu SAVE ke library supaya tidak hilang\n-- Atau langsung INJECT"
-InjectBox.BackgroundColor3 = C.Input InjectBox.TextColor3 = C.Text
-InjectBox.Font = Enum.Font.Code InjectBox.TextSize = 9
-InjectBox.ClearTextOnFocus = false InjectBox.MultiLine = true
-InjectBox.TextXAlignment = Enum.TextXAlignment.Left InjectBox.TextYAlignment = Enum.TextYAlignment.Top
-Corner(InjectBox,6)
-local InjectPad = Instance.new("UIPadding",InjectBox)
-InjectPad.PaddingTop = UDim.new(0,4) InjectPad.PaddingLeft = UDim.new(0,6)
-
--- Tombol baris: INJECT + CLEAR + COPY
-local InjectBtn = Instance.new("TextButton",injectSection)
-InjectBtn.Size = UDim2.new(0.45,-4,0,24) InjectBtn.Position = UDim2.new(0,8,0,122)
-InjectBtn.Text = "⚡ INJECT" InjectBtn.BackgroundColor3 = C.Yellow
-InjectBtn.TextColor3 = Color3.new(0,0,0) InjectBtn.Font = Enum.Font.GothamBold InjectBtn.TextSize = 11
-InjectBtn.AutoButtonColor = false Corner(InjectBtn,6)
-
-local InjectSaveShortBtn = Instance.new("TextButton",injectSection)
-InjectSaveShortBtn.Size = UDim2.new(0.28,-4,0,24) InjectSaveShortBtn.Position = UDim2.new(0.47,0,0,122)
-InjectSaveShortBtn.Text = "💾 SAVE" InjectSaveShortBtn.BackgroundColor3 = Color3.fromRGB(30,80,30)
-InjectSaveShortBtn.TextColor3 = C.Lime InjectSaveShortBtn.Font = Enum.Font.GothamSemibold InjectSaveShortBtn.TextSize = 9
-InjectSaveShortBtn.AutoButtonColor = false Corner(InjectSaveShortBtn,6)
-Stroke(InjectSaveShortBtn,C.Lime,1)
-
-local InjectClearBtn = Instance.new("TextButton",injectSection)
-InjectClearBtn.Size = UDim2.new(0.22,-4,0,24) InjectClearBtn.Position = UDim2.new(0.78,0,0,122)
-InjectClearBtn.Text = "🗑" InjectClearBtn.BackgroundColor3 = C.Card
-InjectClearBtn.TextColor3 = C.Red InjectClearBtn.Font = Enum.Font.GothamSemibold InjectClearBtn.TextSize = 12
-InjectClearBtn.AutoButtonColor = false Corner(InjectClearBtn,6)
-
-local InjectStatus = Instance.new("TextLabel",injectSection)
-InjectStatus.Size = UDim2.new(1,-16,0,12) InjectStatus.Position = UDim2.new(0,8,0,150)
-InjectStatus.Text = "Paste kode lalu INJECT atau SAVE dulu" InjectStatus.TextColor3 = C.Sub
-InjectStatus.Font = Enum.Font.Gotham InjectStatus.TextSize = 9
-InjectStatus.BackgroundTransparency = 1 InjectStatus.TextXAlignment = Enum.TextXAlignment.Left
-
--- SAVE SHORTCUT dari injector (pakai nama dari libNameBox)
-InjectSaveShortBtn.MouseButton1Click:Connect(function()
-    local name = libNameBox.Text
-    if name == "" then
-        -- Auto nama dari timestamp
-        name = "Plugin_"..os.date("%H%M%S")
-        libNameBox.Text = name
-    end
-    local code = InjectBox.Text
-    if code == "" then
-        InjectStatus.Text = "⚠️ Kode kosong!" InjectStatus.TextColor3 = C.Red return
-    end
-    PluginLib[name] = code
-    InjectStatus.Text = "💾 Disimpan sebagai '"..name.."'"
-    InjectStatus.TextColor3 = C.Lime
-    RebuildLibList()
-    Tween(InjectSaveShortBtn,0.12,{BackgroundColor3=Color3.fromRGB(40,140,40)})
-    task.delay(1,function() Tween(InjectSaveShortBtn,0.12,{BackgroundColor3=Color3.fromRGB(30,80,30)}) end)
-end)
-
-InjectClearBtn.MouseButton1Click:Connect(function()
-    InjectBox.Text = ""
-    InjectStatus.Text = "Paste kode lalu INJECT atau SAVE dulu"
-    InjectStatus.TextColor3 = C.Sub
-end)
-
--- INJECT handler  (FIX: tanpa setfenv, kompatibel semua executor)
-InjectBtn.MouseButton1Click:Connect(function()
-    local code = InjectBox.Text
-    if code == "" then
-        InjectStatus.Text = "⚠️ Kode kosong!"
-        InjectStatus.TextColor3 = C.Red return
-    end
-
-    -- Tambahkan akses ke variabel hub lewat _G sementara
-    local _prevState      = rawget(_G,"HubState")
-    local _prevFindRemote = rawget(_G,"FindRemote")
-    rawset(_G,"HubState",   State)
-    rawset(_G,"FindRemote", FindRemote)
-
-    local fn, parseErr = loadstring(code)
-    if not fn then
-        InjectStatus.Text = "❌ Parse error: "..(parseErr or "?")
-        InjectStatus.TextColor3 = C.Red
-        Tween(InjectBtn,0.15,{BackgroundColor3=C.Red, TextColor3=Color3.new(1,1,1)})
-        task.delay(2,function()
-            Tween(InjectBtn,0.15,{BackgroundColor3=C.Yellow, TextColor3=Color3.new(0,0,0)})
-        end)
-        rawset(_G,"HubState",   _prevState)
-        rawset(_G,"FindRemote", _prevFindRemote)
-        return
-    end
-
-    local ok, runErr = pcall(fn)
-
-    -- Restore _G
-    rawset(_G,"HubState",   _prevState)
-    rawset(_G,"FindRemote", _prevFindRemote)
-
-    if ok then
-        InjectStatus.Text = "✅ Plugin berhasil dijalankan!"
-        InjectStatus.TextColor3 = C.Lime
-        Tween(InjectBtn,0.15,{BackgroundColor3=C.Lime, TextColor3=Color3.new(0,0,0)})
-        task.delay(2,function()
-            Tween(InjectBtn,0.15,{BackgroundColor3=C.Yellow, TextColor3=Color3.new(0,0,0)})
-            InjectStatus.TextColor3 = C.Sub
-        end)
-    else
-        -- Tampilkan error lebih singkat supaya muat
-        local errMsg = tostring(runErr or "unknown error")
-        errMsg = errMsg:gsub("^.*:%d+: ","") -- strip path prefix
-        if #errMsg > 55 then errMsg = errMsg:sub(1,55).."…" end
-        InjectStatus.Text = "❌ "..errMsg
-        InjectStatus.TextColor3 = C.Red
-        warn("[CyRuZzz Inject] "..tostring(runErr))
-        Tween(InjectBtn,0.15,{BackgroundColor3=C.Red, TextColor3=Color3.new(1,1,1)})
-        task.delay(2.5,function()
-            Tween(InjectBtn,0.15,{BackgroundColor3=C.Yellow, TextColor3=Color3.new(0,0,0)})
-        end)
-    end
-end)
-
-InjectClearBtn.MouseButton1Click:Connect(function()
-    InjectBox.Text = ""
-    InjectStatus.Text = "Paste kode lalu klik INJECT"
-    InjectStatus.TextColor3 = C.Sub
-end)
-
--- ============================================================
--- ESP SYSTEM
--- ============================================================
-local espObjects     = {}
-local espAvatars     = {}
-local scanEspObjects = {}
-local selectedObj    = nil
-local espContainer   = Instance.new("Folder",workspace)
-espContainer.Name    = "_CyESP"
-
-local function MakeSelectionBox(adornee,col)
-    local sb = Instance.new("SelectionBox",espContainer)
-    sb.Adornee = adornee sb.Color3 = col or C.Accent
-    sb.LineThickness = 0.07 sb.SurfaceTransparency = 0.75 sb.SurfaceColor3 = col or C.Accent
+local function MkSelBox(adornee,col)
+    local sb=Instance.new("SelectionBox",espContainer)
+    sb.Adornee=adornee sb.Color3=col or C.Acc
+    sb.LineThickness=0.06 sb.SurfaceTransparency=0.78 sb.SurfaceColor3=col or C.Acc
     return sb
 end
-
-local function MakeBillboard(adornee,txt,col,yOff)
-    local bb = Instance.new("BillboardGui",espContainer)
-    bb.Adornee = adornee bb.Size = UDim2.new(0,120,0,34)
-    bb.StudsOffset = Vector3.new(0,(yOff or 0)+3,0)
-    bb.AlwaysOnTop = true bb.MaxDistance = 300
-    local lbl = Instance.new("TextLabel",bb)
-    lbl.Size = UDim2.new(1,0,1,0)
-    lbl.BackgroundColor3 = Color3.fromRGB(0,0,0) lbl.BackgroundTransparency = 0.5
-    lbl.TextColor3 = col or C.Accent lbl.Font = Enum.Font.GothamBold lbl.TextSize = 10
-    lbl.Text = txt lbl.TextStrokeTransparency = 0.5 Corner(lbl,4)
+local function MkBill(adornee,txt,col,yOff)
+    local bb=Instance.new("BillboardGui",espContainer)
+    bb.Adornee=adornee bb.Size=UDim2.new(0,130,0,32)
+    bb.StudsOffset=Vector3.new(0,(yOff or 0)+3,0)
+    bb.AlwaysOnTop=true bb.MaxDistance=350
+    local lbl=Instance.new("TextLabel",bb)
+    lbl.Size=UDim2.new(1,0,1,0)
+    lbl.BackgroundColor3=Color3.new(0,0,0) lbl.BackgroundTransparency=0.55
+    lbl.TextColor3=col or C.Acc lbl.Font=Enum.Font.GothamBold lbl.TextSize=9
+    lbl.Text=txt lbl.TextStrokeTransparency=0.5 Cr(lbl,4)
     return bb,lbl
 end
-
-local function RemoveObjEsp(obj)
+local function RemObjEsp(obj)
     if espObjects[obj] then
         pcall(function() if espObjects[obj].box then espObjects[obj].box:Destroy() end end)
-        pcall(function() if espObjects[obj].billboard then espObjects[obj].billboard:Destroy() end end)
-        espObjects[obj] = nil
+        pcall(function() if espObjects[obj].bill then espObjects[obj].bill:Destroy() end end)
+        espObjects[obj]=nil
     end
 end
-
 local function AddObjEsp(obj,col)
-    RemoveObjEsp(obj) col = col or C.Accent
-    local target = obj
+    RemObjEsp(obj) col=col or C.Acc
+    local target=obj
     if obj:IsA("Model") then
-        local r = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
-        if r then target = r end
+        local r=obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
+        if r then target=r end
     end
-    local box = MakeSelectionBox(obj,col)
-    local bb,lbl = MakeBillboard(target,obj.Name.."\n["..obj.ClassName.."]",col)
-    espObjects[obj] = {box=box,billboard=bb,label=lbl,part=target}
+    local box=MkSelBox(obj,col)
+    local bb,lbl=MkBill(target,obj.Name,col)
+    espObjects[obj]={box=box,bill=bb,lbl=lbl,part=target}
 end
-
-local function UpdateObjEspLabel(obj)
-    local data = espObjects[obj]
-    if not data or not data.label then return end
-    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    local part = data.part
+local function UpdateEspLabel(obj)
+    local d=espObjects[obj] if not d or not d.lbl then return end
+    local hrp=HRP() local part=d.part
     if part and part.Parent and hrp then
-        local ok,pos = pcall(function()
-            if part:IsA("BasePart") then return part.Position
-            elseif part:IsA("Model") then
-                local r = part:FindFirstChild("HumanoidRootPart") or part:FindFirstChildWhichIsA("BasePart")
-                return r and r.Position
-            end
+        local ok,pos=pcall(function()
+            if part:IsA("BasePart") then return part.Position end
         end)
         if ok and pos then
-            local dist = math.floor((pos-hrp.Position).Magnitude)
-            data.label.Text = obj.Name.."\n📍 "..dist.." st"
+            local dist=math.floor((pos-hrp.Position).Magnitude)
+            d.lbl.Text=obj.Name.."\n📍 "..dist.."st"
         end
     end
 end
-
-local function RemoveAvaEsp(p)
-    if espAvatars[p] then
-        for _,v in pairs(espAvatars[p]) do pcall(function() v:Destroy() end) end
-        espAvatars[p] = nil
+local function RemPlayerEsp(p)
+    if espPlayers[p] then
+        for _,v in pairs(espPlayers[p]) do pcall(function() v:Destroy() end) end
+        espPlayers[p]=nil
     end
 end
-
-local function RefreshAvaEsp()
-    for p,_ in pairs(espAvatars) do
-        if not p or not p.Parent then RemoveAvaEsp(p) end
-    end
-    if not State.espAvatar then
-        for p,_ in pairs(espAvatars) do RemoveAvaEsp(p) end return
+local function RefreshPlayerEsp()
+    for p,_ in pairs(espPlayers) do if not p or not p.Parent then RemPlayerEsp(p) end end
+    if not State.espPlayers then
+        for p,_ in pairs(espPlayers) do RemPlayerEsp(p) end return
     end
     for _,p in pairs(Players:GetPlayers()) do
-        if p == player then continue end
-        local char = p.Character
-        if not char then RemoveAvaEsp(p) continue end
-        local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
-        if not root then RemoveAvaEsp(p) continue end
-        if not espAvatars[p] then
-            local box = MakeSelectionBox(char,C.Pink)
-            local bb,_ = MakeBillboard(root,"👤 "..p.Name.."\n[PLAYER]",C.Pink,2)
-            espAvatars[p] = {box,bb}
+        if p==player then continue end
+        local char=p.Character
+        if not char then RemPlayerEsp(p) continue end
+        local root=char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
+        if not root then RemPlayerEsp(p) continue end
+        if not espPlayers[p] then
+            local box=MkSelBox(char,C.Pink)
+            local bb,lbl=MkBill(root,"👤 "..p.Name,C.Pink,2)
+            espPlayers[p]={box,bb}
         end
     end
 end
-
-Players.PlayerRemoving:Connect(function(p) RemoveAvaEsp(p) end)
-
-local currentHL = nil
-local function SetHighlight(obj)
-    if currentHL then currentHL:Destroy() currentHL = nil end
+Players.PlayerRemoving:Connect(function(p) RemPlayerEsp(p) end)
+local function SetHL(obj)
+    if currentHL then currentHL:Destroy() currentHL=nil end
     if not obj then return end
-    local h = Instance.new("SelectionBox",espContainer)
-    h.Adornee = obj h.Color3 = C.Yellow
-    h.LineThickness = 0.09 h.SurfaceTransparency = 0.7 h.SurfaceColor3 = C.Yellow
-    currentHL = h
+    local h=Instance.new("SelectionBox",espContainer)
+    h.Adornee=obj h.Color3=C.Yellow
+    h.LineThickness=0.1 h.SurfaceTransparency=0.7 h.SurfaceColor3=C.Yellow
+    currentHL=h
 end
-
--- ============================================================
--- TARGET LOCK
--- ============================================================
-local lockTarget = nil
-
 local function GetAllTargets()
-    local targets = {}
+    local tgts={}
     for _,p in pairs(Players:GetPlayers()) do
-        if p == player then continue end
-        local char = p.Character
+        if p==player then continue end
+        local char=p.Character
         if not char then continue end
-        local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
-        if root then table.insert(targets,{part=root,name=p.Name}) end
+        local root=char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
+        if root then table.insert(tgts,{part=root,name=p.Name,player=p}) end
     end
-    return targets
+    return tgts
 end
-
-local function FindNearestTarget()
-    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return nil end
-    local nearest,nearDist = nil,math.huge
+local function FindNearest()
+    local hrp=HRP() if not hrp then return nil end
+    local near,nearD=nil,math.huge
     for _,t in pairs(GetAllTargets()) do
-        local dist = (t.part.Position-hrp.Position).Magnitude
-        if dist < nearDist then nearDist=dist nearest=t end
+        local d=(t.part.Position-hrp.Position).Magnitude
+        if d<nearD then nearD=d near=t end
     end
-    return nearest
+    return near
 end
+local scanPage=pages["SCAN"]
+local searchBox=Instance.new("TextBox",scanPage)
+searchBox.Size=UDim2.new(1,0,0,28) searchBox.PlaceholderText="🔍  Cari nama objek..."
+searchBox.Text="" searchBox.BackgroundColor3=C.Input searchBox.TextColor3=C.Text
+searchBox.Font=Enum.Font.Gotham searchBox.TextSize=11 searchBox.ClearTextOnFocus=false
+Cr(searchBox,7) Pad(searchBox,8,0,0,0)
 
--- ============================================================
--- SCANNER LOGIC
--- ============================================================
-local allObjs = {}
+local scanBtnRow=Instance.new("Frame",scanPage)
+scanBtnRow.Size=UDim2.new(1,0,0,28) scanBtnRow.Position=UDim2.new(0,0,0,32)
+scanBtnRow.BackgroundTransparency=1
+local sRefBtn=Instance.new("TextButton",scanBtnRow)
+sRefBtn.Size=UDim2.new(1/3,-2,1,0) sRefBtn.Text="SCAN" sRefBtn.BackgroundColor3=C.Acc2
+sRefBtn.TextColor3=Color3.new(1,1,1) sRefBtn.Font=Enum.Font.GothamBold sRefBtn.TextSize=11
+sRefBtn.AutoButtonColor=false Cr(sRefBtn,6)
+local sTpBtn=Instance.new("TextButton",scanBtnRow)
+sTpBtn.Size=UDim2.new(1/3,-2,1,0) sTpBtn.Position=UDim2.new(1/3,2,0,0)
+sTpBtn.Text="TP" sTpBtn.BackgroundColor3=C.Card sTpBtn.TextColor3=C.Sub
+sTpBtn.Font=Enum.Font.GothamBold sTpBtn.TextSize=11 sTpBtn.AutoButtonColor=false Cr(sTpBtn,6)
+local sEspBtn=Instance.new("TextButton",scanBtnRow)
+sEspBtn.Size=UDim2.new(1/3,-2,1,0) sEspBtn.Position=UDim2.new(2/3,4,0,0)
+sEspBtn.Text="ESP" sEspBtn.BackgroundColor3=C.Card sEspBtn.TextColor3=C.Sub
+sEspBtn.Font=Enum.Font.GothamBold sEspBtn.TextSize=11 sEspBtn.AutoButtonColor=false Cr(sEspBtn,6)
 
-local function GetObjCategory(obj)
+local filterRow=Instance.new("Frame",scanPage)
+filterRow.Size=UDim2.new(1,0,0,22) filterRow.Position=UDim2.new(0,0,0,64)
+filterRow.BackgroundTransparency=1
+local fLayout=Instance.new("UIListLayout",filterRow)
+fLayout.FillDirection=Enum.FillDirection.Horizontal fLayout.Padding=UDim.new(0,3)
+local filterActive="ALL" local filterBtns={}
+for i,lbl in ipairs({"ALL","Player","Model","Part","NPC"}) do
+    local fb=Instance.new("TextButton",filterRow)
+    fb.Size=UDim2.new(0,i==1 and 32 or 50,1,0)
+    fb.Text=lbl fb.Font=Enum.Font.GothamSemibold fb.TextSize=9
+    fb.BackgroundColor3=i==1 and C.Acc or C.Card
+    fb.TextColor3=i==1 and Color3.new(1,1,1) or C.Sub
+    fb.AutoButtonColor=false fb.LayoutOrder=i Cr(fb,5)
+    filterBtns[lbl]=fb
+end
+local scanStat=Instance.new("TextLabel",scanPage)
+scanStat.Size=UDim2.new(1,0,0,13) scanStat.Position=UDim2.new(0,0,0,90)
+scanStat.Text="Tekan SCAN" scanStat.TextColor3=C.Sub
+scanStat.Font=Enum.Font.Gotham scanStat.TextSize=9
+scanStat.BackgroundTransparency=1 scanStat.TextXAlignment=Enum.TextXAlignment.Left
+local listFrame=Instance.new("ScrollingFrame",scanPage)
+listFrame.Size=UDim2.new(1,0,1,-106) listFrame.Position=UDim2.new(0,0,0,106)
+listFrame.BackgroundColor3=C.Input listFrame.BorderSizePixel=0
+listFrame.ScrollBarThickness=2 listFrame.ScrollBarImageColor3=C.Acc
+listFrame.CanvasSize=UDim2.new(0,0,0,0) Cr(listFrame,6)
+local listLayout=Instance.new("UIListLayout",listFrame)
+listLayout.Padding=UDim.new(0,2) listLayout.SortOrder=Enum.SortOrder.LayoutOrder
+Pad(listFrame,3,3,3,3)
+local allObjs={} local selectedObj=nil
+
+local function GetCat(obj)
     if obj:IsA("Model") then
         if Players:GetPlayerFromCharacter(obj) then return "Player" end
         if obj:FindFirstChildOfClass("Humanoid") then return "NPC" end
         return "Model"
-    elseif obj:IsA("Tool") then return "Tool"
     elseif obj:IsA("BasePart") then return "Part"
     else return obj.ClassName end
 end
-
-local function GetObjPos(obj)
-    if obj:IsA("BasePart") then return obj.Position end
-    if obj:IsA("Model") then
-        local r = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
-        if r then return r.Position end
-        local ok,cf = pcall(function() return obj:GetModelCFrame() end)
-        if ok then return cf.Position end
-    end
-    return nil
-end
-
-local function GetDist(pos)
-    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+local function GetObjDist(obj)
+    local hrp=HRP() local pos=ObjPos(obj)
     if not hrp or not pos then return 9999 end
     return math.floor((hrp.Position-pos).Magnitude)
 end
-
-local function BuildList(filter)
-    for _,c in pairs(ListFrame:GetChildren()) do
+local function BuildScanList(filter)
+    for _,c in pairs(listFrame:GetChildren()) do
         if c:IsA("TextButton") or c:IsA("Frame") then c:Destroy() end
     end
-    local sorted = {}
-    local icons = {Player="👤",NPC="🤖",Model="📦",Part="🔷",Tool="🔧"}
+    local sorted={}
+    local icons={Player="👤",NPC="🤖",Model="📦",Part="🔷"}
     for _,obj in ipairs(allObjs) do
-        local cat = GetObjCategory(obj)
-        if filterActive ~= "ALL" and cat ~= filterActive then continue end
-        local name = obj.Name
-        if filter and filter ~= "" then
+        local cat=GetCat(obj)
+        if filterActive~="ALL" and cat~=filterActive then continue end
+        local name=obj.Name
+        if filter and filter~="" then
             if not string.lower(name):find(string.lower(filter),1,true) then continue end
         end
-        local pos = GetObjPos(obj)
-        table.insert(sorted,{obj=obj,name=name,cat=cat,dist=GetDist(pos)})
+        table.insert(sorted,{obj=obj,name=name,cat=cat,dist=GetObjDist(obj)})
     end
-    table.sort(sorted,function(a,b) return a.dist < b.dist end)
+    table.sort(sorted,function(a,b) return a.dist<b.dist end)
     for i,data in ipairs(sorted) do
-        local entry = Instance.new("TextButton",ListFrame)
-        entry.Size = UDim2.new(1,0,0,32)
-        entry.BackgroundColor3 = C.Card
-        entry.TextColor3 = data.cat=="Player" and Color3.fromRGB(185,145,255) or C.Text
-        entry.Font = Enum.Font.Gotham entry.TextSize = 10
-        entry.TextXAlignment = Enum.TextXAlignment.Left
-        entry.BorderSizePixel = 0 entry.LayoutOrder = i entry.AutoButtonColor = false
-        entry.Text = "  "..(icons[data.cat] or "❔").."  "..data.name.."   ("..data.dist.."st)"
-        Corner(entry,5)
+        local entry=Instance.new("TextButton",listFrame)
+        entry.Size=UDim2.new(1,0,0,30)
+        entry.BackgroundColor3=C.Card
+        entry.TextColor3=data.cat=="Player" and Color3.fromRGB(185,145,255) or C.Text
+        entry.Font=Enum.Font.Gotham entry.TextSize=9
+        entry.TextXAlignment=Enum.TextXAlignment.Left
+        entry.BorderSizePixel=0 entry.LayoutOrder=i entry.AutoButtonColor=false
+        entry.Text="  "..(icons[data.cat] or "❔").."  "..data.name.."   ("..data.dist.."st)"
+        entry.TextTruncate=Enum.TextTruncate.AtEnd
+        Cr(entry,5)
         entry.MouseButton1Click:Connect(function()
-            selectedObj = data.obj
-            for _,e in pairs(ListFrame:GetChildren()) do
-                if e:IsA("TextButton") then e.BackgroundColor3 = C.Card end
+            selectedObj=data.obj
+            for _,e in pairs(listFrame:GetChildren()) do
+                if e:IsA("TextButton") then e.BackgroundColor3=C.Card end
             end
-            Tween(entry,0.1,{BackgroundColor3=Color3.fromRGB(38,26,80)})
-            SetHighlight(data.obj)
-            ScanStatus.Text = "✅ "..data.name
-            Tween(ScanTeleBtn,0.15,{BackgroundColor3=C.Green,TextColor3=Color3.new(1,1,1)})
+            Tw(entry,0.1,{BackgroundColor3=Color3.fromRGB(35,24,70)})
+            SetHL(data.obj)
+            scanStat.Text="✅ "..data.name
+            Tw(sTpBtn,0.15,{BackgroundColor3=C.Green,TextColor3=Color3.new(1,1,1)})
         end)
     end
-    ListFrame.CanvasSize = UDim2.new(0,0,0,(#sorted*35)+8)
-    ScanStatus.Text = "📋 "..(#sorted).." objek"
+    listFrame.CanvasSize=UDim2.new(0,0,0,(#sorted*32)+8)
+    scanStat.Text="📋 "..(#sorted).." objek ditemukan"
 end
-
 local function DoScan()
-    allObjs = {}
+    allObjs={}
     for _,obj in ipairs(workspace:GetChildren()) do
-        if obj.Name == player.Name then continue end
-        if obj.Name == "Terrain" then continue end
-        if obj.Name == "_CyESP" then continue end
+        if obj.Name==player.Name then continue end
+        if obj.Name=="Terrain" then continue end
+        if obj.Name=="_CyESP" then continue end
         table.insert(allObjs,obj)
-    end
-    local extras = {}
-    for _,obj in ipairs(allObjs) do
         if obj:IsA("Model") and not Players:GetPlayerFromCharacter(obj) then
             for _,child in ipairs(obj:GetChildren()) do
                 if child:IsA("Model") or child:IsA("BasePart") then
-                    table.insert(extras,child)
+                    table.insert(allObjs,child)
                 end
             end
         end
     end
-    for _,e in ipairs(extras) do table.insert(allObjs,e) end
-    BuildList(SearchBox.Text)
+    BuildScanList(searchBox.Text)
 end
-
-for label,fb in pairs(filterBtns) do
+for lbl,fb in pairs(filterBtns) do
     fb.MouseButton1Click:Connect(function()
-        filterActive = label
+        filterActive=lbl
         for l,btn in pairs(filterBtns) do
-            Tween(btn,0.12,{
-                BackgroundColor3 = l==label and C.Accent or C.Card,
-                TextColor3       = l==label and Color3.new(1,1,1) or C.Sub
-            })
+            Tw(btn,0.12,{BackgroundColor3=l==lbl and C.Acc or C.Card,TextColor3=l==lbl and Color3.new(1,1,1) or C.Sub})
         end
-        BuildList(SearchBox.Text)
+        BuildScanList(searchBox.Text)
+    end)
+end
+searchBox:GetPropertyChangedSignal("Text"):Connect(function() BuildScanList(searchBox.Text) end)
+sRefBtn.MouseButton1Click:Connect(function()
+    scanStat.Text="🔄 Scanning..." task.wait(0.05) DoScan()
+end)
+sTpBtn.MouseButton1Click:Connect(function()
+    if not selectedObj then scanStat.Text="⚠️ Pilih dulu!" return end
+    local pos=ObjPos(selectedObj)
+    if not pos then scanStat.Text="⚠️ No position" return end
+    local hrp=HRP()
+    if hrp then
+        backPos=hrp.Position
+        hrp.CFrame=CFrame.new(pos+Vector3.new(0,5,0))
+        scanStat.Text="🚀 TP: "..selectedObj.Name
+    end
+end)
+sEspBtn.MouseButton1Click:Connect(function()
+    if not selectedObj then scanStat.Text="⚠️ Pilih dulu!" return end
+    if scanEspMap[selectedObj] then
+        RemObjEsp(selectedObj) scanEspMap[selectedObj]=nil
+        Tw(sEspBtn,0.15,{BackgroundColor3=C.Card,TextColor3=C.Sub})
+        sEspBtn.Text="ESP"
+    else
+        AddObjEsp(selectedObj,C.Yellow) scanEspMap[selectedObj]=true
+        Tw(sEspBtn,0.15,{BackgroundColor3=C.Green,TextColor3=Color3.new(1,1,1)})
+        sEspBtn.Text="ESP ✓"
+    end
+end)
+
+local remSection=MkCard(scanPage,0,99)
+remSection.Size=UDim2.new(1,0,0,0)
+remSection.BackgroundTransparency=1
+local socialScroll,_=MkScroll(pages["SOCIAL"])
+
+MkSectionHeader(socialScroll,"🎮  SERVER / JOB ID",C.Gold,1)
+local jobIdCard=MkCard(socialScroll,34,2)
+local jobIdLbl=Instance.new("TextLabel",jobIdCard)
+jobIdLbl.Size=UDim2.new(1,-90,1,-8) jobIdLbl.Position=UDim2.new(0,8,0,4)
+local jid=game.JobId
+jobIdLbl.Text=jid~="" and jid:sub(1,22).."..." or "Private Server"
+jobIdLbl.TextColor3=C.Gold jobIdLbl.Font=Enum.Font.Code jobIdLbl.TextSize=9
+jobIdLbl.BackgroundTransparency=1 jobIdLbl.TextXAlignment=Enum.TextXAlignment.Left
+local copyJobBtn=Instance.new("TextButton",jobIdCard)
+copyJobBtn.Size=UDim2.new(0,80,1,-8) copyJobBtn.Position=UDim2.new(1,-84,0,4)
+copyJobBtn.Text="📋 COPY ID" copyJobBtn.BackgroundColor3=C.Gold
+copyJobBtn.TextColor3=Color3.new(0,0,0) copyJobBtn.Font=Enum.Font.GothamBold copyJobBtn.TextSize=9
+copyJobBtn.AutoButtonColor=false Cr(copyJobBtn,5)
+copyJobBtn.MouseButton1Click:Connect(function()
+    if setclipboard then setclipboard(game.JobId) end
+    copyJobBtn.Text="✅ Copied!" Tw(copyJobBtn,0.12,{BackgroundColor3=C.Lime})
+    task.delay(1.5,function() copyJobBtn.Text="📋 COPY ID" Tw(copyJobBtn,0.12,{BackgroundColor3=C.Gold}) end)
+end)
+
+MkSectionHeader(socialScroll,"🔗  JOIN VIA JOB ID",C.Teal,3)
+local joinInp=MkInputRow(socialScroll,"Paste Job ID di sini...","",4)
+local joinBtn=MkBtn(socialScroll,"🔗  JOIN SERVER INI",C.Teal,5,34)
+joinBtn.TextColor3=Color3.new(0,0,0) joinBtn.Font=Enum.Font.GothamBold
+joinBtn.MouseButton1Click:Connect(function()
+    local id=joinInp.Text
+    if id=="" then return end
+    local TeleportService=game:GetService("TeleportService")
+    pcall(function()
+        TeleportService:TeleportToPlaceInstance(game.PlaceId,id,player)
+    end)
+end)
+
+MkSectionHeader(socialScroll,"👥  PLAYERS",C.Pink,6)
+local playerListFrame=Instance.new("ScrollingFrame",MkCard(socialScroll,180,7))
+playerListFrame.Size=UDim2.new(1,-10,1,-10) playerListFrame.Position=UDim2.new(0,5,0,5)
+playerListFrame.BackgroundColor3=C.Input playerListFrame.BorderSizePixel=0
+playerListFrame.ScrollBarThickness=2 playerListFrame.ScrollBarImageColor3=C.Pink
+playerListFrame.CanvasSize=UDim2.new(0,0,0,0) Cr(playerListFrame,6)
+local plLayout=Instance.new("UIListLayout",playerListFrame)
+plLayout.Padding=UDim.new(0,2) plLayout.SortOrder=Enum.SortOrder.LayoutOrder
+Pad(playerListFrame,3,3,3,3)
+
+local socialStat=MkStat(socialScroll,8)
+local selectedPlayerName=""
+local playerLastPos={}
+
+local function BuildPlayerList()
+    for _,c in pairs(playerListFrame:GetChildren()) do
+        if not c:IsA("UIListLayout") and not c:IsA("UIPadding") then c:Destroy() end
+    end
+    local plist=Players:GetPlayers()
+    for i,p in ipairs(plist) do
+        if p==player then continue end
+        local row=Instance.new("Frame",playerListFrame)
+        row.Size=UDim2.new(1,0,0,36) row.BackgroundColor3=C.Card
+        row.BorderSizePixel=0 row.LayoutOrder=i Cr(row,5)
+
+        local ava=Instance.new("TextLabel",row)
+        ava.Size=UDim2.new(0,30,0,30) ava.Position=UDim2.new(0,4,0,3)
+        ava.Text="👤" ava.TextSize=18 ava.BackgroundColor3=C.CardH
+        ava.TextColor3=C.Pink ava.BackgroundTransparency=0 Cr(ava,6)
+        ava.Font=Enum.Font.GothamBold
+
+        local nameLbl=Instance.new("TextLabel",row)
+        nameLbl.Size=UDim2.new(1,-130,0,18) nameLbl.Position=UDim2.new(0,38,0,3)
+        nameLbl.Text=p.Name nameLbl.TextColor3=C.Text
+        nameLbl.Font=Enum.Font.GothamSemibold nameLbl.TextSize=10
+        nameLbl.BackgroundTransparency=1 nameLbl.TextXAlignment=Enum.TextXAlignment.Left
+        nameLbl.TextTruncate=Enum.TextTruncate.AtEnd
+
+        local hrp2=p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+        local dist="?"
+        local myHrp=HRP()
+        if hrp2 and myHrp then
+            dist=math.floor((hrp2.Position-myHrp.Position).Magnitude).."st"
+        end
+        local distLbl=Instance.new("TextLabel",row)
+        distLbl.Size=UDim2.new(1,-130,0,12) distLbl.Position=UDim2.new(0,38,0,20)
+        distLbl.Text="📍 "..dist nameLbl.TextColor3=C.Sub
+        distLbl.TextColor3=C.Sub distLbl.Font=Enum.Font.Gotham distLbl.TextSize=8
+        distLbl.BackgroundTransparency=1 distLbl.TextXAlignment=Enum.TextXAlignment.Left
+
+        local tpPBtn=Instance.new("TextButton",row)
+        tpPBtn.Size=UDim2.new(0,28,0,28) tpPBtn.Position=UDim2.new(1,-94,0,4)
+        tpPBtn.Text="🚀" tpPBtn.BackgroundColor3=Color3.fromRGB(30,20,70)
+        tpPBtn.TextColor3=C.Acc tpPBtn.Font=Enum.Font.GothamBold tpPBtn.TextSize=13
+        tpPBtn.AutoButtonColor=false Cr(tpPBtn,6)
+
+        local followPBtn=Instance.new("TextButton",row)
+        followPBtn.Size=UDim2.new(0,28,0,28) followPBtn.Position=UDim2.new(1,-62,0,4)
+        followPBtn.Text="🔗" followPBtn.BackgroundColor3=Color3.fromRGB(20,40,70)
+        followPBtn.TextColor3=C.Cyan followPBtn.Font=Enum.Font.GothamBold followPBtn.TextSize=13
+        followPBtn.AutoButtonColor=false Cr(followPBtn,6)
+
+        local hitchPBtn=Instance.new("TextButton",row)
+        hitchPBtn.Size=UDim2.new(0,28,0,28) hitchPBtn.Position=UDim2.new(1,-30,0,4)
+        hitchPBtn.Text="🧲" hitchPBtn.BackgroundColor3=Color3.fromRGB(40,20,60)
+        hitchPBtn.TextColor3=C.Purple hitchPBtn.Font=Enum.Font.GothamBold hitchPBtn.TextSize=13
+        hitchPBtn.AutoButtonColor=false Cr(hitchPBtn,6)
+
+        local cap=p
+        tpPBtn.MouseButton1Click:Connect(function()
+            local char2=cap.Character
+            local root2=char2 and (char2:FindFirstChild("HumanoidRootPart") or char2:FindFirstChildWhichIsA("BasePart"))
+            if root2 then
+                local hrp=HRP()
+                if hrp then
+                    backPos=hrp.Position
+                    playerLastPos[cap.Name]=root2.Position
+                    hrp.CFrame=CFrame.new(root2.Position+Vector3.new(0,3,0))
+                    socialStat.Text="🚀 TP ke "..cap.Name
+                    socialStat.TextColor3=C.Lime
+                end
+            else
+                socialStat.Text="⚠️ "..cap.Name.." tidak punya karakter"
+                socialStat.TextColor3=C.Red
+            end
+        end)
+        followPBtn.MouseButton1Click:Connect(function()
+            if State.followTarget==cap.Name then
+                State.follow=false State.followTarget=nil
+                socialStat.Text="🔗 Follow OFF" socialStat.TextColor3=C.Sub
+                Tw(followPBtn,0.12,{BackgroundColor3=Color3.fromRGB(20,40,70),TextColor3=C.Cyan})
+            else
+                State.follow=true State.followTarget=cap.Name
+                socialStat.Text="🔗 Follow: "..cap.Name socialStat.TextColor3=C.Cyan
+                Tw(followPBtn,0.12,{BackgroundColor3=C.Cyan,TextColor3=Color3.new(0,0,0)})
+            end
+        end)
+        hitchPBtn.MouseButton1Click:Connect(function()
+            if State.hitchTarget==cap.Name then
+                State.hitch=false State.hitchTarget=nil
+                socialStat.Text="🧲 Hitch OFF" socialStat.TextColor3=C.Sub
+                Tw(hitchPBtn,0.12,{BackgroundColor3=Color3.fromRGB(40,20,60),TextColor3=C.Purple})
+            else
+                State.hitch=true State.hitchTarget=cap.Name
+                socialStat.Text="🧲 Nempel ke "..cap.Name socialStat.TextColor3=C.Purple
+                Tw(hitchPBtn,0.12,{BackgroundColor3=C.Purple,TextColor3=Color3.new(1,1,1)})
+            end
+        end)
+    end
+    plLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        playerListFrame.CanvasSize=UDim2.new(0,0,0,plLayout.AbsoluteContentSize.Y+8)
     end)
 end
 
-SearchBox:GetPropertyChangedSignal("Text"):Connect(function() BuildList(SearchBox.Text) end)
-ScanRefBtn.MouseButton1Click:Connect(function()
-    ScanStatus.Text = "🔄 Scanning..." task.wait(0.05) DoScan()
-end)
-ScanTeleBtn.MouseButton1Click:Connect(function()
-    if not selectedObj then ScanStatus.Text = "⚠️ Pilih dulu!" return end
-    local pos = GetObjPos(selectedObj)
-    if not pos then ScanStatus.Text = "⚠️ No position" return end
-    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        hrp.CFrame = CFrame.new(pos+Vector3.new(0,5,0))
-        ScanStatus.Text = "🚀 TP: "..selectedObj.Name
-    end
-end)
-ScanEspBtn.MouseButton1Click:Connect(function()
-    if not selectedObj then ScanStatus.Text = "⚠️ Pilih dulu!" return end
-    if scanEspObjects[selectedObj] then
-        RemoveObjEsp(selectedObj) scanEspObjects[selectedObj] = nil
-        Tween(ScanEspBtn,0.15,{BackgroundColor3=C.Card,TextColor3=C.Sub})
-        ScanEspBtn.Text = "ESP"
-    else
-        AddObjEsp(selectedObj,C.Yellow) scanEspObjects[selectedObj] = true
-        Tween(ScanEspBtn,0.15,{BackgroundColor3=C.Green,TextColor3=Color3.new(1,1,1)})
-        ScanEspBtn.Text = "ESP ✓"
-    end
+local refreshPlBtn=MkBtn(socialScroll,"🔄  Refresh Player List",C.Card,9,28)
+refreshPlBtn.TextColor3=C.Sub refreshPlBtn.TextSize=10
+refreshPlBtn.MouseButton1Click:Connect(function()
+    BuildPlayerList()
+    socialStat.Text="✅ Player list diperbarui" socialStat.TextColor3=C.Lime
 end)
 
--- ============================================================
--- REMOTE SCANNER LOGIC
--- ============================================================
-local scannedRemotes = {}
-local remoteOutput   = ""
+MkSectionHeader(socialScroll,"🧲  ITEM MAGNET",C.Purple,10)
+local magnetCard=MkCard(socialScroll,110,11)
+local magRemInp=Instance.new("TextBox",magnetCard)
+magRemInp.Size=UDim2.new(1,-16,0,24) magRemInp.Position=UDim2.new(0,8,0,6)
+magRemInp.PlaceholderText="Nama RemoteEvent (opsional)" magRemInp.Text=""
+magRemInp.BackgroundColor3=C.Input magRemInp.TextColor3=C.Text
+magRemInp.Font=Enum.Font.Gotham magRemInp.TextSize=10
+magRemInp.ClearTextOnFocus=false Cr(magRemInp,5) Pad(magRemInp,6,0,0,0)
+local magItemInp=Instance.new("TextBox",magnetCard)
+magItemInp.Size=UDim2.new(1,-16,0,24) magItemInp.Position=UDim2.new(0,8,0,34)
+magItemInp.PlaceholderText="Filter nama item (kosong = semua)" magItemInp.Text=""
+magItemInp.BackgroundColor3=C.Input magItemInp.TextColor3=C.Text
+magItemInp.Font=Enum.Font.Gotham magItemInp.TextSize=10
+magItemInp.ClearTextOnFocus=false Cr(magItemInp,5) Pad(magItemInp,6,0,0,0)
+local magRadInp=Instance.new("TextBox",magnetCard)
+magRadInp.Size=UDim2.new(0.45,-10,0,24) magRadInp.Position=UDim2.new(0,8,0,62)
+magRadInp.Text="80" magRadInp.PlaceholderText="Radius"
+magRadInp.BackgroundColor3=C.Input magRadInp.TextColor3=C.Text
+magRadInp.Font=Enum.Font.Gotham magRadInp.TextSize=10
+magRadInp.ClearTextOnFocus=false Cr(magRadInp,5) Pad(magRadInp,6,0,0,0)
+local magToggle=Instance.new("TextButton",magnetCard)
+magToggle.Size=UDim2.new(0.5,-6,0,24) magToggle.Position=UDim2.new(0.5,0,0,62)
+magToggle.Text="🧲 MAGNET: OFF" magToggle.BackgroundColor3=C.Red
+magToggle.TextColor3=C.Text magToggle.Font=Enum.Font.GothamSemibold magToggle.TextSize=10
+magToggle.AutoButtonColor=false Cr(magToggle,5)
+local magStat=Instance.new("TextLabel",magnetCard)
+magStat.Size=UDim2.new(1,-16,0,12) magStat.Position=UDim2.new(0,8,0,90)
+magStat.Text="Isi remote/filter lalu aktifkan" magStat.TextColor3=C.Sub
+magStat.Font=Enum.Font.Gotham magStat.TextSize=9
+magStat.BackgroundTransparency=1 magStat.TextXAlignment=Enum.TextXAlignment.Left
 
-local function DoRemoteScan()
-    scannedRemotes = {} remoteOutput = ""
-    local locations = {
-        {game:GetService("ReplicatedStorage"),"ReplicatedStorage"},
-        {game:GetService("ReplicatedFirst"),  "ReplicatedFirst"},
-        {workspace,                           "Workspace"},
-    }
-    for _,loc in ipairs(locations) do
-        pcall(function()
-            for _,obj in ipairs(loc[1]:GetDescendants()) do
-                if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")
-                or obj:IsA("BindableEvent") or obj:IsA("BindableFunction") then
-                    table.insert(scannedRemotes,{type=obj.ClassName,name=obj.Name,path=obj:GetFullName(),obj=obj})
-                end
-            end
-        end)
-    end
-    local grouped = {RemoteEvent={},RemoteFunction={},BindableEvent={},BindableFunction={}}
-    for _,r in ipairs(scannedRemotes) do
-        if grouped[r.type] then table.insert(grouped[r.type],r) end
-    end
-    remoteOutput = "=== CyRuZzz Remote Scanner ===\nTotal: "..#scannedRemotes.."\n\n"
-    for typeName,list in pairs(grouped) do
-        if #list > 0 then
-            remoteOutput = remoteOutput.."["..typeName.."] ("..#list..")\n"
-            for _,r in ipairs(list) do remoteOutput = remoteOutput.."  "..r.path.."\n" end
-            remoteOutput = remoteOutput.."\n"
-        end
-    end
-    for _,c in pairs(RemList:GetChildren()) do
-        if not c:IsA("UIListLayout") and not c:IsA("UIPadding") then c:Destroy() end
-    end
-    local shortType = {RemoteEvent="RE",RemoteFunction="RF",BindableEvent="BE",BindableFunction="BF"}
-    local typeCol   = {RemoteEvent=C.Accent,RemoteFunction=C.Accent2,BindableEvent=C.Cyan,BindableFunction=C.Pink}
-    for i,r in ipairs(scannedRemotes) do
-        local item = Instance.new("Frame",RemList)
-        item.Size = UDim2.new(1,0,0,24) item.BackgroundColor3 = C.Card
-        item.BorderSizePixel = 0 item.LayoutOrder = i Corner(item,5)
-        local tag = Instance.new("TextLabel",item)
-        tag.Size = UDim2.new(0,22,1,-4) tag.Position = UDim2.new(0,3,0,2)
-        tag.Text = shortType[r.type] or "??"
-        tag.BackgroundColor3 = typeCol[r.type] or C.Sub tag.BackgroundTransparency = 0.5
-        tag.TextColor3 = typeCol[r.type] or C.Sub
-        tag.Font = Enum.Font.GothamBold tag.TextSize = 7 tag.TextXAlignment = Enum.TextXAlignment.Center
-        Corner(tag,3)
-        local nameLbl = Instance.new("TextLabel",item)
-        nameLbl.Size = UDim2.new(1,-28,1,0) nameLbl.Position = UDim2.new(0,28,0,0)
-        nameLbl.Text = r.name nameLbl.TextColor3 = C.Text
-        nameLbl.Font = Enum.Font.Gotham nameLbl.TextSize = 9
-        nameLbl.BackgroundTransparency = 1 nameLbl.TextXAlignment = Enum.TextXAlignment.Left
-        nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
-        item.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                RemoteInp.Text = r.name
-                MagStatusLbl.Text = "✅ '"..r.name.."' → magnet & PICK siap"
-                -- Set lastPickedRemote supaya tombol PICK di AUTO bisa pakai
-                lastPickedRemote = r.name
-                Tween(item,0.1,{BackgroundColor3=Color3.fromRGB(30,20,60)})
-                task.delay(0.5,function() Tween(item,0.1,{BackgroundColor3=C.Card}) end)
-            end
-        end)
-    end
-    RemList.CanvasSize = UDim2.new(0,0,0,(#scannedRemotes*26)+8)
-    RemStatus.Text = "📡 "..(#scannedRemotes).." remote ditemukan"
+local magnetConn=nil
+local function FindRemote(name)
+    local Ev2=ReplicatedStorage:FindFirstChild("Events") or ReplicatedStorage
+    return Ev2:FindFirstChild(name)
+        or ReplicatedStorage:FindFirstChild(name,true)
+        or workspace:FindFirstChild(name,true)
 end
-
-RemScanBtn.MouseButton1Click:Connect(function()
-    RemStatus.Text = "🔄 Scanning..." task.wait(0.05) DoRemoteScan()
-end)
-RemCopyBtn.MouseButton1Click:Connect(function()
-    if remoteOutput == "" then RemStatus.Text = "⚠️ Scan dulu!" return end
-    if setclipboard then
-        setclipboard(remoteOutput)
-        Tween(RemCopyBtn,0.15,{BackgroundColor3=C.Green,TextColor3=Color3.new(1,1,1)})
-        RemStatus.Text = "✅ Disalin!"
-        task.delay(2,function() Tween(RemCopyBtn,0.15,{BackgroundColor3=C.Card,TextColor3=C.Sub}) end)
-    else
-        print(remoteOutput) RemStatus.Text = "📋 Cek console"
-    end
-end)
-
--- ============================================================
--- MAGNET LOGIC
--- ============================================================
-local magnetConn = nil
 local function ToggleMagnet()
-    State.magnet = not State.magnet
+    State.magnet=not State.magnet
     if State.magnet then
-        Tween(MagnetToggle,0.15,{BackgroundColor3=C.Pink})
-        MagnetToggle.Text = "🧲 MAGNET: ON"
-        local remoteName = RemoteInp.Text
-        local itemFilter = ItemNameInp.Text
-        local radius     = tonumber(RadiusInp.Text) or 50
-        local targetRemote = remoteName ~= "" and FindRemote(remoteName) or nil
-        MagStatusLbl.Text = targetRemote and ("🧲 Remote: "..targetRemote.Name) or "Physical magnet aktif"
-        magnetConn = RunService.Heartbeat:Connect(function()
-            local char = player.Character
-            local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+        Tw(magToggle,0.15,{BackgroundColor3=C.Purple})
+        magToggle.Text="🧲 MAGNET: ON"
+        local remName=magRemInp.Text
+        local itemFilter=magItemInp.Text
+        local radius=tonumber(magRadInp.Text) or 80
+        local targetRemote=remName~="" and FindRemote(remName) or nil
+        magStat.Text=targetRemote and ("🧲 "..targetRemote.Name) or "Physical magnet aktif"
+        magnetConn=RunService.Heartbeat:Connect(function()
+            local char=player.Character local hrp=char and char:FindFirstChild("HumanoidRootPart")
             if not hrp then return end
             for _,obj in ipairs(workspace:GetDescendants()) do
                 if not obj or not obj.Parent then continue end
                 if obj:IsA("Terrain") then continue end
-                if obj.Parent == espContainer then continue end
-                local name = obj.Name
-                local match = itemFilter=="" or string.lower(name):find(string.lower(itemFilter),1,true)
+                if obj.Parent==espContainer then continue end
+                local name=obj.Name
+                local match=itemFilter=="" or string.lower(name):find(string.lower(itemFilter),1,true)
                 if not match then continue end
-                local isChar = false
-                for _,p in pairs(Players:GetPlayers()) do
-                    if p.Character==obj or p.Character==obj.Parent then isChar=true break end
+                local isChar=false
+                for _,p2 in pairs(Players:GetPlayers()) do
+                    if p2.Character==obj or p2.Character==obj.Parent then isChar=true break end
                 end
                 if isChar then continue end
-                local pos = nil
-                if obj:IsA("BasePart") then pos=obj.Position
+                local pos2=nil
+                if obj:IsA("BasePart") then pos2=obj.Position
                 elseif obj:IsA("Model") then
-                    local r = obj:FindFirstChildWhichIsA("BasePart")
-                    if r then pos=r.Position end
+                    local r2=obj:FindFirstChildWhichIsA("BasePart")
+                    if r2 then pos2=r2.Position end
                 end
-                if pos then
-                    local dist = (pos-hrp.Position).Magnitude
+                if pos2 then
+                    local dist=(pos2-hrp.Position).Magnitude
                     if dist<=radius and dist>2 then
                         if targetRemote then
                             pcall(function()
@@ -1325,11 +992,11 @@ local function ToggleMagnet()
                                 elseif targetRemote:IsA("RemoteFunction") then targetRemote:InvokeServer(obj) end
                             end)
                         else
-                            if obj:IsA("BasePart") then
-                                pcall(function()
-                                    obj.CFrame = CFrame.new(hrp.Position+Vector3.new(math.random(-2,2),0,math.random(-2,2)))
-                                end)
-                            end
+                            pcall(function()
+                                if obj:IsA("BasePart") then
+                                    obj.CFrame=CFrame.new(hrp.Position+Vector3.new(math.random(-2,2),0,math.random(-2,2)))
+                                end
+                            end)
                         end
                     end
                 end
@@ -1337,350 +1004,730 @@ local function ToggleMagnet()
         end)
     else
         if magnetConn then magnetConn:Disconnect() magnetConn=nil end
-        Tween(MagnetToggle,0.15,{BackgroundColor3=C.Red})
-        MagnetToggle.Text = "🧲 MAGNET: OFF"
-        MagStatusLbl.Text = "Isi remote lalu aktifkan"
+        Tw(magToggle,0.15,{BackgroundColor3=C.Red})
+        magToggle.Text="🧲 MAGNET: OFF"
+        magStat.Text="Isi remote/filter lalu aktifkan"
     end
 end
-MagnetToggle.MouseButton1Click:Connect(ToggleMagnet)
+magToggle.MouseButton1Click:Connect(ToggleMagnet)
+BuildPlayerList()
+local PluginLib=_G.CyPluginLib
+local DB=_G.CyBH
+local injectScroll,_=MkScroll(pages["INJECT"])
 
--- ============================================================
--- GHOST
--- ============================================================
-local function ApplyGhostVisuals(char,invisible)
+MkSectionHeader(injectScroll,"📚  PLUGIN LIBRARY",C.Yellow,1)
+local libCard=MkCard(injectScroll,200,2)
+
+local libNameBox=Instance.new("TextBox",libCard)
+libNameBox.Size=UDim2.new(1,-16,0,24) libNameBox.Position=UDim2.new(0,8,0,6)
+libNameBox.PlaceholderText="Nama plugin (cth: BrainrotHunter)"
+libNameBox.Text="" libNameBox.BackgroundColor3=C.Input libNameBox.TextColor3=C.Yellow
+libNameBox.Font=Enum.Font.GothamSemibold libNameBox.TextSize=10
+libNameBox.ClearTextOnFocus=false Cr(libNameBox,5) Pad(libNameBox,6,0,0,0)
+
+local libSaveBtn=Instance.new("TextButton",libCard)
+libSaveBtn.Size=UDim2.new(0.48,-6,0,22) libSaveBtn.Position=UDim2.new(0,8,0,34)
+libSaveBtn.Text="💾 SAVE" libSaveBtn.BackgroundColor3=Color3.fromRGB(25,70,25)
+libSaveBtn.TextColor3=C.Lime libSaveBtn.Font=Enum.Font.GothamSemibold libSaveBtn.TextSize=10
+libSaveBtn.AutoButtonColor=false Cr(libSaveBtn,5) Sk(libSaveBtn,C.Lime,1)
+
+local libDelBtn=Instance.new("TextButton",libCard)
+libDelBtn.Size=UDim2.new(0.48,-6,0,22) libDelBtn.Position=UDim2.new(0.52,-2,0,34)
+libDelBtn.Text="🗑 DELETE" libDelBtn.BackgroundColor3=C.Card
+libDelBtn.TextColor3=C.Red libDelBtn.Font=Enum.Font.GothamSemibold libDelBtn.TextSize=10
+libDelBtn.AutoButtonColor=false Cr(libDelBtn,5) Sk(libDelBtn,C.Red,1)
+
+local libStat=Instance.new("TextLabel",libCard)
+libStat.Size=UDim2.new(1,-16,0,12) libStat.Position=UDim2.new(0,8,0,60)
+libStat.Text="Simpan plugin dari injector ke sini" libStat.TextColor3=C.Sub
+libStat.Font=Enum.Font.Gotham libStat.TextSize=9
+libStat.BackgroundTransparency=1 libStat.TextXAlignment=Enum.TextXAlignment.Left
+
+local libList=Instance.new("ScrollingFrame",libCard)
+libList.Size=UDim2.new(1,-16,0,118) libList.Position=UDim2.new(0,8,0,76)
+libList.BackgroundColor3=C.Input libList.BorderSizePixel=0
+libList.ScrollBarThickness=2 libList.ScrollBarImageColor3=C.Yellow
+libList.CanvasSize=UDim2.new(0,0,0,0) Cr(libList,6)
+local libLL=Instance.new("UIListLayout",libList)
+libLL.Padding=UDim.new(0,2) libLL.SortOrder=Enum.SortOrder.LayoutOrder
+Pad(libList,3,3,3,3)
+
+local InjectBox
+local function RebuildLibList()
+    for _,c in pairs(libList:GetChildren()) do
+        if not c:IsA("UIListLayout") and not c:IsA("UIPadding") then c:Destroy() end
+    end
+    local count=0
+    for name,_ in pairs(PluginLib) do
+        count=count+1
+        local item=Instance.new("Frame",libList)
+        item.Size=UDim2.new(1,0,0,26) item.BackgroundColor3=C.Card
+        item.BorderSizePixel=0 item.LayoutOrder=count Cr(item,5)
+        local nLbl=Instance.new("TextLabel",item)
+        nLbl.Size=UDim2.new(1,-58,1,0) nLbl.Position=UDim2.new(0,6,0,0)
+        nLbl.Text="📌 "..name nLbl.TextColor3=C.Yellow
+        nLbl.Font=Enum.Font.GothamSemibold nLbl.TextSize=9
+        nLbl.BackgroundTransparency=1 nLbl.TextXAlignment=Enum.TextXAlignment.Left
+        nLbl.TextTruncate=Enum.TextTruncate.AtEnd
+        local lBtn=Instance.new("TextButton",item)
+        lBtn.Size=UDim2.new(0,50,1,-6) lBtn.Position=UDim2.new(1,-54,0,3)
+        lBtn.Text="LOAD" lBtn.BackgroundColor3=C.Acc
+        lBtn.TextColor3=Color3.new(1,1,1) lBtn.Font=Enum.Font.GothamBold lBtn.TextSize=9
+        lBtn.AutoButtonColor=false Cr(lBtn,4)
+        local sn=name
+        lBtn.MouseButton1Click:Connect(function()
+            if InjectBox then InjectBox.Text=PluginLib[sn] or "" end
+            libNameBox.Text=sn
+            libStat.Text="✅ '"..sn.."' dimuat" libStat.TextColor3=C.Lime
+            Tw(lBtn,0.12,{BackgroundColor3=C.Lime})
+            task.delay(0.8,function() Tw(lBtn,0.12,{BackgroundColor3=C.Acc}) end)
+        end)
+    end
+    libList.CanvasSize=UDim2.new(0,0,0,(count*28)+6)
+    libStat.Text=count>0 and count.." plugin tersimpan" or "Library kosong"
+    libStat.TextColor3=C.Sub
+end
+
+MkSectionHeader(injectScroll,"🔌  PLUGIN INJECTOR",C.Yellow,3)
+local injectCard=MkCard(injectScroll,180,4)
+
+InjectBox=Instance.new("TextBox",injectCard)
+InjectBox.Size=UDim2.new(1,-16,0,96) InjectBox.Position=UDim2.new(0,8,0,6)
+InjectBox.Text="" InjectBox.PlaceholderText="-- Paste kode plugin di sini\n-- Lalu SAVE ke library atau langsung INJECT"
+InjectBox.BackgroundColor3=C.Input InjectBox.TextColor3=C.Text
+InjectBox.Font=Enum.Font.Code InjectBox.TextSize=9
+InjectBox.ClearTextOnFocus=false InjectBox.MultiLine=true
+InjectBox.TextXAlignment=Enum.TextXAlignment.Left InjectBox.TextYAlignment=Enum.TextYAlignment.Top
+Cr(InjectBox,6) Pad(InjectBox,6,6,4,4)
+
+local injectBtn=Instance.new("TextButton",injectCard)
+injectBtn.Size=UDim2.new(0.44,-6,0,24) injectBtn.Position=UDim2.new(0,8,0,106)
+injectBtn.Text="⚡ INJECT" injectBtn.BackgroundColor3=C.Yellow
+injectBtn.TextColor3=Color3.new(0,0,0) injectBtn.Font=Enum.Font.GothamBold injectBtn.TextSize=11
+injectBtn.AutoButtonColor=false Cr(injectBtn,6)
+
+local injectSaveBtn=Instance.new("TextButton",injectCard)
+injectSaveBtn.Size=UDim2.new(0.3,-4,0,24) injectSaveBtn.Position=UDim2.new(0.46,0,0,106)
+injectSaveBtn.Text="💾 SAVE" injectSaveBtn.BackgroundColor3=Color3.fromRGB(25,70,25)
+injectSaveBtn.TextColor3=C.Lime injectSaveBtn.Font=Enum.Font.GothamSemibold injectSaveBtn.TextSize=9
+injectSaveBtn.AutoButtonColor=false Cr(injectSaveBtn,6) Sk(injectSaveBtn,C.Lime,1)
+
+local injectClrBtn=Instance.new("TextButton",injectCard)
+injectClrBtn.Size=UDim2.new(0.22,-4,0,24) injectClrBtn.Position=UDim2.new(0.78,0,0,106)
+injectClrBtn.Text="🗑" injectClrBtn.BackgroundColor3=C.Card
+injectClrBtn.TextColor3=C.Red injectClrBtn.Font=Enum.Font.GothamBold injectClrBtn.TextSize=14
+injectClrBtn.AutoButtonColor=false Cr(injectClrBtn,6)
+
+local injectStat=Instance.new("TextLabel",injectCard)
+injectStat.Size=UDim2.new(1,-16,0,12) injectStat.Position=UDim2.new(0,8,0,134)
+injectStat.Text="Paste kode lalu INJECT atau SAVE dulu"
+injectStat.TextColor3=C.Sub injectStat.Font=Enum.Font.Gotham injectStat.TextSize=9
+injectStat.BackgroundTransparency=1 injectStat.TextXAlignment=Enum.TextXAlignment.Left
+
+local hintLbl=Instance.new("TextLabel",injectCard)
+hintLbl.Size=UDim2.new(1,-16,0,28) hintLbl.Position=UDim2.new(0,8,0,148)
+hintLbl.Text="HubState = akses State hub\nFindRemote(name) = cari remote otomatis"
+hintLbl.TextColor3=C.Sub hintLbl.Font=Enum.Font.Code hintLbl.TextSize=8
+hintLbl.BackgroundTransparency=1 hintLbl.TextXAlignment=Enum.TextXAlignment.Left
+hintLbl.TextWrapped=true
+
+libSaveBtn.MouseButton1Click:Connect(function()
+    local name=libNameBox.Text
+    if name=="" then libStat.Text="⚠️ Isi nama!" libStat.TextColor3=C.Red return end
+    local code=InjectBox and InjectBox.Text or ""
+    if code=="" then libStat.Text="⚠️ Kode kosong!" libStat.TextColor3=C.Red return end
+    PluginLib[name]=code
+    libStat.Text="💾 '"..name.."' tersimpan!" libStat.TextColor3=C.Lime
+    RebuildLibList()
+    Tw(libSaveBtn,0.12,{BackgroundColor3=Color3.fromRGB(40,130,40)})
+    task.delay(1,function() Tw(libSaveBtn,0.12,{BackgroundColor3=Color3.fromRGB(25,70,25)}) end)
+end)
+libDelBtn.MouseButton1Click:Connect(function()
+    local name=libNameBox.Text
+    if name=="" then libStat.Text="⚠️ Isi nama!" libStat.TextColor3=C.Red return end
+    if PluginLib[name] then
+        PluginLib[name]=nil
+        libStat.Text="🗑 '"..name.."' dihapus" libStat.TextColor3=C.Orange
+        libNameBox.Text="" RebuildLibList()
+    else
+        libStat.Text="⚠️ '"..name.."' tidak ada" libStat.TextColor3=C.Red
+    end
+end)
+injectSaveBtn.MouseButton1Click:Connect(function()
+    local name=libNameBox.Text
+    if name=="" then name="Plugin_"..os.date("%H%M%S") libNameBox.Text=name end
+    local code=InjectBox.Text
+    if code=="" then injectStat.Text="⚠️ Kode kosong!" injectStat.TextColor3=C.Red return end
+    PluginLib[name]=code
+    injectStat.Text="💾 Disimpan: '"..name.."'" injectStat.TextColor3=C.Lime
+    RebuildLibList()
+end)
+injectClrBtn.MouseButton1Click:Connect(function()
+    InjectBox.Text=""
+    injectStat.Text="Paste kode lalu INJECT atau SAVE dulu"
+    injectStat.TextColor3=C.Sub
+end)
+injectBtn.MouseButton1Click:Connect(function()
+    local code=InjectBox.Text
+    if code=="" then injectStat.Text="⚠️ Kode kosong!" injectStat.TextColor3=C.Red return end
+    local prev1=rawget(_G,"HubState")
+    local prev2=rawget(_G,"FindRemote")
+    rawset(_G,"HubState",State)
+    rawset(_G,"FindRemote",FindRemote)
+    local fn,pe=loadstring(code)
+    if not fn then
+        injectStat.Text="❌ "..((pe or "parse error"):gsub("^.*:%d+: ",""):sub(1,50))
+        injectStat.TextColor3=C.Red
+        Tw(injectBtn,0.15,{BackgroundColor3=C.Red,TextColor3=Color3.new(1,1,1)})
+        task.delay(2,function() Tw(injectBtn,0.15,{BackgroundColor3=C.Yellow,TextColor3=Color3.new(0,0,0)}) end)
+        rawset(_G,"HubState",prev1) rawset(_G,"FindRemote",prev2) return
+    end
+    local ok,re=pcall(fn)
+    rawset(_G,"HubState",prev1) rawset(_G,"FindRemote",prev2)
+    if ok then
+        injectStat.Text="✅ Plugin berhasil dijalankan!" injectStat.TextColor3=C.Lime
+        Tw(injectBtn,0.15,{BackgroundColor3=C.Lime,TextColor3=Color3.new(0,0,0)})
+        task.delay(2,function() Tw(injectBtn,0.15,{BackgroundColor3=C.Yellow,TextColor3=Color3.new(0,0,0)}) injectStat.TextColor3=C.Sub end)
+    else
+        local em=tostring(re or ""):gsub("^.*:%d+: ",""):sub(1,55)
+        injectStat.Text="❌ "..em injectStat.TextColor3=C.Red
+        warn("[CyRuZzZ Inject] "..tostring(re))
+        Tw(injectBtn,0.15,{BackgroundColor3=C.Red,TextColor3=Color3.new(1,1,1)})
+        task.delay(2.5,function() Tw(injectBtn,0.15,{BackgroundColor3=C.Yellow,TextColor3=Color3.new(0,0,0)}) end)
+    end
+end)
+RebuildLibList()
+local flyConn=nil
+local function ToggleFly()
+    State.flying=not State.flying
+    setFly(State.flying)
+    local char=player.Character
+    if not char then return end
+    local root=char:FindFirstChild("HumanoidRootPart")
+    local hum=char:FindFirstChildOfClass("Humanoid")
+    if State.flying and root and hum then
+        hum.PlatformStand=true
+        local bv=Instance.new("BodyVelocity",root)
+        bv.Name="_CyFlyVel" bv.MaxForce=Vector3.new(9e9,9e9,9e9) bv.Velocity=Vector3.new(0,0,0)
+        local bg=Instance.new("BodyGyro",root)
+        bg.Name="_CyFlyGyro" bg.MaxTorque=Vector3.new(9e9,9e9,9e9) bg.P=9e4 bg.CFrame=root.CFrame
+        flyConn=RunService.RenderStepped:Connect(function()
+            if not State.flying then return end
+            local spd=tonumber(speedInp.Text) or 60
+            local cam2=workspace.CurrentCamera.CFrame
+            local dir=Vector3.new(0,0,0)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir=dir+cam2.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir=dir-cam2.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir=dir-cam2.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir=dir+cam2.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir=dir+Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir=dir-Vector3.new(0,1,0) end
+            bv.Velocity=dir.Magnitude>0 and dir.Unit*spd or Vector3.new(0,0,0)
+            bg.CFrame=cam2
+        end)
+        mainStat.Text="✈ Fly ON" mainStat.TextColor3=C.Green
+    else
+        if flyConn then flyConn:Disconnect() flyConn=nil end
+        if hum then hum.PlatformStand=false end
+        if root then
+            local fv=root:FindFirstChild("_CyFlyVel") local fg=root:FindFirstChild("_CyFlyGyro")
+            if fv then fv:Destroy() end if fg then fg:Destroy() end
+        end
+        mainStat.Text="✈ Fly OFF" mainStat.TextColor3=C.Sub
+    end
+end
+flyBtn.MouseButton1Click:Connect(ToggleFly)
+
+local noclipConn=nil
+local function ToggleNoclip()
+    State.noclip=not State.noclip
+    setNoclip(State.noclip)
+    if State.noclip then
+        noclipConn=RunService.Stepped:Connect(function()
+            local char=player.Character if not char then return end
+            for _,p2 in pairs(char:GetDescendants()) do
+                if p2:IsA("BasePart") then p2.CanCollide=false end
+            end
+        end)
+        mainStat.Text="👻 Noclip ON" mainStat.TextColor3=Color3.fromRGB(100,60,220)
+    else
+        if noclipConn then noclipConn:Disconnect() noclipConn=nil end
+        local char=player.Character
+        if char then
+            for _,p2 in pairs(char:GetDescendants()) do
+                if p2:IsA("BasePart") then p2.CanCollide=true end
+            end
+        end
+        mainStat.Text="👻 Noclip OFF" mainStat.TextColor3=C.Sub
+    end
+end
+noclipBtn.MouseButton1Click:Connect(ToggleNoclip)
+
+local infJumpConn=nil
+local function ToggleInfJump()
+    State.infJump=not State.infJump
+    setInfJump(State.infJump)
+    if State.infJump then
+        infJumpConn=AddConn(UserInputService.JumpRequest:Connect(function()
+            local hum=HUM()
+            if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+        end))
+        mainStat.Text="🦘 Infinite Jump ON" mainStat.TextColor3=C.Orange
+    else
+        if infJumpConn then infJumpConn:Disconnect() infJumpConn=nil end
+        mainStat.Text="🦘 Infinite Jump OFF" mainStat.TextColor3=C.Sub
+    end
+end
+infJumpBtn.MouseButton1Click:Connect(ToggleInfJump)
+
+local origAmbient=Lighting.Ambient
+local origOutdoor=Lighting.OutdoorAmbient
+local origBright=Lighting.Brightness
+local function ToggleFullbright()
+    State.fullbright=not State.fullbright
+    setFullbright(State.fullbright)
+    if State.fullbright then
+        Lighting.Ambient=Color3.new(1,1,1)
+        Lighting.OutdoorAmbient=Color3.new(1,1,1)
+        Lighting.Brightness=2
+        for _,v in pairs(Lighting:GetChildren()) do
+            if v:IsA("BlurEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("SunRaysEffect") then
+                v.Enabled=false
+            end
+        end
+        mainStat.Text="💡 Full Bright ON" mainStat.TextColor3=C.Yellow
+    else
+        Lighting.Ambient=origAmbient
+        Lighting.OutdoorAmbient=origOutdoor
+        Lighting.Brightness=origBright
+        for _,v in pairs(Lighting:GetChildren()) do
+            if v:IsA("BlurEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("SunRaysEffect") then
+                v.Enabled=true
+            end
+        end
+        mainStat.Text="💡 Full Bright OFF" mainStat.TextColor3=C.Sub
+    end
+end
+fullbrightBtn.MouseButton1Click:Connect(ToggleFullbright)
+
+local freecamPart=nil local freecamConn=nil
+local function ToggleFreecam()
+    State.freecam=not State.freecam
+    setFreecam(State.freecam)
+    if State.freecam then
+        State.origFOV=camera.FieldOfView
+        freecamPart=Instance.new("Part",workspace)
+        freecamPart.Name="_CyFreecam" freecamPart.Size=Vector3.new(1,1,1)
+        freecamPart.Anchored=true freecamPart.CanCollide=false freecamPart.Transparency=1
+        local hrp=HRP()
+        if hrp then freecamPart.CFrame=hrp.CFrame+Vector3.new(0,3,0)
+        else freecamPart.CFrame=CFrame.new(0,10,0) end
+        camera.CameraType=Enum.CameraType.Scriptable
+        camera.CFrame=freecamPart.CFrame
+        freecamConn=RunService.RenderStepped:Connect(function()
+            if not State.freecam then return end
+            local spd2=(tonumber(speedInp.Text) or 60)*0.5
+            local camCF=camera.CFrame
+            local moveDir=Vector3.new(0,0,0)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir=moveDir+camCF.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir=moveDir-camCF.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir=moveDir-camCF.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir=moveDir+camCF.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir=moveDir+Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir=moveDir-Vector3.new(0,1,0) end
+            if moveDir.Magnitude>0 then
+                freecamPart.CFrame=freecamPart.CFrame+moveDir.Unit*(spd2*0.016)
+                camera.CFrame=CFrame.new(freecamPart.CFrame.Position,freecamPart.CFrame.Position+camCF.LookVector)
+            end
+        end)
+        mainStat.Text="📷 Freecam ON" mainStat.TextColor3=C.Teal
+    else
+        if freecamConn then freecamConn:Disconnect() freecamConn=nil end
+        if freecamPart then freecamPart:Destroy() freecamPart=nil end
+        camera.CameraType=Enum.CameraType.Custom
+        if State.origFOV then camera.FieldOfView=State.origFOV end
+        mainStat.Text="📷 Freecam OFF" mainStat.TextColor3=C.Sub
+    end
+end
+freecamBtn.MouseButton1Click:Connect(ToggleFreecam)
+
+local clickTPConn=nil
+local function ToggleClickTP()
+    State.clickTP=not State.clickTP
+    setClickTP(State.clickTP)
+    if State.clickTP then
+        clickTPConn=mouse.Button1Down:Connect(function()
+            if not State.clickTP then return end
+            local target2=mouse.Target
+            local hit2=mouse.Hit
+            if hit2 then
+                local hrp=HRP()
+                if hrp then
+                    backPos=hrp.Position
+                    hrp.CFrame=CFrame.new(hit2.Position+Vector3.new(0,3,0))
+                end
+            end
+        end)
+        mainStat.Text="🖱 Click TP ON" mainStat.TextColor3=C.Acc2
+    else
+        if clickTPConn then clickTPConn:Disconnect() clickTPConn=nil end
+        mainStat.Text="🖱 Click TP OFF" mainStat.TextColor3=C.Sub
+    end
+end
+clickTPBtn.MouseButton1Click:Connect(ToggleClickTP)
+
+local instantEConn=nil
+local function ToggleInstantE()
+    State.instantE=not State.instantE
+    setInstantE(State.instantE)
+    if State.instantE then
+        instantEConn=RunService.Heartbeat:Connect(function()
+            if not State.instantE then return end
+            local hrp=HRP() if not hrp then return end
+            for _,obj in pairs(workspace:GetDescendants()) do
+                if not obj or not obj.Parent then continue end
+                if obj:IsA("ProximityPrompt") then
+                    local pp=obj
+                    local ppPart=pp.Parent
+                    if ppPart and ppPart:IsA("BasePart") then
+                        local dist2=(ppPart.Position-hrp.Position).Magnitude
+                        if dist2<=(pp.MaxActivationDistance or 10)+5 then
+                            pcall(function() fireproximityprompt(pp) end)
+                        end
+                    end
+                end
+                if obj:IsA("ClickDetector") then
+                    local cdPart=obj.Parent
+                    if cdPart and cdPart:IsA("BasePart") then
+                        local dist3=(cdPart.Position-hrp.Position).Magnitude
+                        if dist3<=(obj.MaxActivationDistance or 32) then
+                            pcall(function() fireclickdetector(obj) end)
+                        end
+                    end
+                end
+            end
+        end)
+        mainStat.Text="⚡ Instant E ON" mainStat.TextColor3=C.Lime
+    else
+        if instantEConn then instantEConn:Disconnect() instantEConn=nil end
+        mainStat.Text="⚡ Instant E OFF" mainStat.TextColor3=C.Sub
+    end
+end
+instantEBtn.MouseButton1Click:Connect(ToggleInstantE)
+
+speedToggle.MouseButton1Click:Connect(function()
+    local hum=HUM()
+    if not State.speedOn then
+        if hum then State.originalWalkSpeed=hum.WalkSpeed end
+        State.speedOn=true
+        speedToggle.Text="⚡ SPEED: ON ✓"
+        Tw(speedToggle,0.15,{BackgroundColor3=C.Green})
+        mainStat.Text="⚡ Speed ON ("..speedInp.Text..")" mainStat.TextColor3=C.Green
+    else
+        State.speedOn=false
+        if hum then hum.WalkSpeed=State.originalWalkSpeed end
+        speedToggle.Text="⚡ SPEED: OFF"
+        Tw(speedToggle,0.15,{BackgroundColor3=C.Red})
+        mainStat.Text="Speed reset → "..State.originalWalkSpeed mainStat.TextColor3=C.Sub
+    end
+end)
+
+local ghostCharConn=nil
+local function ApplyGhost(char,on)
     if not char then return end
     for _,v in pairs(char:GetDescendants()) do
-        if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
-            v.LocalTransparencyModifier = invisible and 1 or 0
-            v.Transparency = invisible and 1 or 0
-        elseif v:IsA("Decal") then v.Transparency = invisible and 1 or 0 end
+        if v:IsA("BasePart") and v.Name~="HumanoidRootPart" then
+            v.LocalTransparencyModifier=on and 1 or 0
+            v.Transparency=on and 1 or 0
+        elseif v:IsA("Decal") then v.Transparency=on and 1 or 0 end
     end
     for _,acc in pairs(char:GetChildren()) do
         if acc:IsA("Accessory") then
-            local handle = acc:FindFirstChild("Handle")
+            local handle=acc:FindFirstChild("Handle")
             if handle then
-                handle.LocalTransparencyModifier = invisible and 1 or 0
-                handle.Transparency = invisible and 1 or 0
+                handle.LocalTransparencyModifier=on and 1 or 0
+                handle.Transparency=on and 1 or 0
             end
         end
     end
 end
-
-local ghostCharConn = nil
 local function ToggleGhost()
-    State.ghost = not State.ghost
-    SetToggle(GhostToggle,State.ghost,"👻 GHOST")
-    ApplyGhostVisuals(player.Character,State.ghost)
+    State.ghost=not State.ghost
+    setGhost(State.ghost)
+    ApplyGhost(player.Character,State.ghost)
     if State.ghost then
-        ghostCharConn = player.CharacterAdded:Connect(function(newChar)
+        ghostCharConn=player.CharacterAdded:Connect(function(nc)
             task.wait(0.5)
-            if State.ghost then ApplyGhostVisuals(newChar,true) end
+            if State.ghost then ApplyGhost(nc,true) end
         end)
-        StatLbl.Text = "👻 Ghost aktif"
+        mainStat.Text="🌫 Ghost ON" mainStat.TextColor3=C.Cyan
     else
         if ghostCharConn then ghostCharConn:Disconnect() ghostCharConn=nil end
-        StatLbl.Text = "Ghost nonaktif"
+        mainStat.Text="🌫 Ghost OFF" mainStat.TextColor3=C.Sub
     end
 end
-GhostToggle.MouseButton1Click:Connect(ToggleGhost)
+ghostBtn.MouseButton1Click:Connect(ToggleGhost)
 
--- ============================================================
--- GODMODE
--- ============================================================
-local godRealChar=nil local godFakeChar=nil local currentOffset=15
-
+local godRealChar=nil local godFakeChar=nil
 local function ToggleGodmode()
     if State.godmode then
-        State.godmode = false
-        local savedPos = nil
+        State.godmode=false
+        local savedPos=nil
         if godFakeChar then
-            local fRoot = godFakeChar:FindFirstChild("HumanoidRootPart")
-            if fRoot then savedPos = fRoot.CFrame end
+            local fr=godFakeChar:FindFirstChild("HumanoidRootPart")
+            if fr then savedPos=fr.CFrame end
         end
         if godRealChar then
-            player.Character = godRealChar
-            workspace.CurrentCamera.CameraSubject = godRealChar:FindFirstChild("Humanoid") or godRealChar
+            player.Character=godRealChar
+            workspace.CurrentCamera.CameraSubject=godRealChar:FindFirstChildOfClass("Humanoid") or godRealChar
             for _,v in pairs(godRealChar:GetDescendants()) do
                 if v:IsA("BasePart") then v.CanCollide=true if v.Name~="HumanoidRootPart" then v.Transparency=0 end v.LocalTransparencyModifier=0
                 elseif v:IsA("Decal") then v.Transparency=0 end
             end
             if savedPos then
-                local rRoot = godRealChar:FindFirstChild("HumanoidRootPart")
-                if rRoot then rRoot.CFrame=savedPos rRoot.Velocity=Vector3.new(0,0,0) end
+                local rr=godRealChar:FindFirstChild("HumanoidRootPart")
+                if rr then rr.CFrame=savedPos rr.Velocity=Vector3.new(0,0,0) end
             end
         end
         if godFakeChar then godFakeChar:Destroy() godFakeChar=nil end
         godRealChar=nil
+        setGod(false)
+        mainStroke.Color=C.Acc
+        mainStat.Text="🛡 Godmode OFF" mainStat.TextColor3=C.Sub
     else
-        godRealChar = player.Character
+        godRealChar=player.Character
         if not godRealChar then return end
-        godRealChar.Archivable = true
-        State.godmode = true currentOffset = State.offsetDist
-        godFakeChar = godRealChar:Clone()
-        godFakeChar.Name = player.Name.."_Fake"
-        godFakeChar.Parent = workspace
+        godRealChar.Archivable=true
+        State.godmode=true
+        godFakeChar=godRealChar:Clone()
+        godFakeChar.Name=player.Name.."_Fake"
+        godFakeChar.Parent=workspace
         for _,v in pairs(godFakeChar:GetDescendants()) do
-            if (v:IsA("BasePart") or v:IsA("Decal")) and v.Name~="HumanoidRootPart" then v.Transparency=0.4 end
+            if (v:IsA("BasePart") or v:IsA("Decal")) and v.Name~="HumanoidRootPart" then
+                v.Transparency=0.35
+            end
         end
         for _,v in pairs(godRealChar:GetDescendants()) do
             if v:IsA("BasePart") then v.CanCollide=false end
         end
-        player.Character = godFakeChar
-        workspace.CurrentCamera.CameraSubject = godFakeChar:WaitForChild("Humanoid")
-        local fHum = godFakeChar:FindFirstChild("Humanoid")
+        player.Character=godFakeChar
+        workspace.CurrentCamera.CameraSubject=godFakeChar:WaitForChild("Humanoid")
+        local fHum=godFakeChar:FindFirstChildOfClass("Humanoid")
         if fHum then fHum.Died:Connect(function() if State.godmode then ToggleGodmode() end end) end
-    end
-    SetToggle(GodToggle,State.godmode,"🛡  GODMODE")
-    mainStroke.Color = State.godmode and C.Orange or C.Accent
-end
-GodToggle.MouseButton1Click:Connect(ToggleGodmode)
-
--- ============================================================
--- SLIDER
--- ============================================================
-local sliderDrag = false
-SliderKnob.MouseButton1Down:Connect(function() sliderDrag=true end)
-UserInputService.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then sliderDrag=false end
-end)
-
--- ============================================================
--- FLY
--- ============================================================
-local flyConn = nil
-local function ToggleFly()
-    State.flying = not State.flying
-    SetToggle(FlyToggle,State.flying,"✈  FLY")
-    local char = player.Character
-    if not char then return end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    local hum  = char:FindFirstChild("Humanoid")
-    if State.flying and root and hum then
-        hum.PlatformStand = true
-        local bv = Instance.new("BodyVelocity",root)
-        bv.Name="_FlyVel" bv.MaxForce=Vector3.new(9e9,9e9,9e9) bv.Velocity=Vector3.new(0,0,0)
-        local bg = Instance.new("BodyGyro",root)
-        bg.Name="_FlyGyro" bg.MaxTorque=Vector3.new(9e9,9e9,9e9) bg.P=9e4 bg.CFrame=root.CFrame
-        flyConn = RunService.RenderStepped:Connect(function()
-            if not State.flying then return end
-            local spd = tonumber(SpeedInp.Text) or 60
-            local cam = workspace.CurrentCamera.CFrame
-            local dir = Vector3.new(0,0,0)
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir+=cam.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir-=cam.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir-=cam.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir+=cam.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir+=Vector3.new(0,1,0) end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir-=Vector3.new(0,1,0) end
-            bv.Velocity = dir.Magnitude>0 and dir.Unit*spd or Vector3.new(0,0,0)
-            bg.CFrame = cam
-        end)
-    else
-        if flyConn then flyConn:Disconnect() flyConn=nil end
-        if hum then hum.PlatformStand=false end
-        if root then
-            local fv=root:FindFirstChild("_FlyVel") local fg=root:FindFirstChild("_FlyGyro")
-            if fv then fv:Destroy() end if fg then fg:Destroy() end
-        end
+        setGod(true)
+        mainStroke.Color=C.Orange
+        mainStat.Text="🛡 Godmode ON" mainStat.TextColor3=C.Orange
     end
 end
-FlyToggle.MouseButton1Click:Connect(ToggleFly)
+godBtn.MouseButton1Click:Connect(ToggleGodmode)
 
--- ============================================================
--- SPEED
--- ============================================================
-SpeedToggle.MouseButton1Click:Connect(function()
-    local char = player.Character
-    local hum  = char and char:FindFirstChild("Humanoid")
-    if not State.speedOn then
-        if hum then originalWalkSpeed = hum.WalkSpeed end
-        State.speedOn = true
-        SetToggle(SpeedToggle,true,"SPEED")
-        StatLbl.Text = "⚡ Speed ON ("..SpeedInp.Text..")"
+local aimbotConn=nil
+local function ToggleAimbot()
+    State.aimbot=not State.aimbot
+    setAimbot(State.aimbot)
+    if State.aimbot then
+        if not lockTarget then lockTarget=FindNearest() end
+        mainStat.Text="🎯 Aimbot ON" mainStat.TextColor3=C.Pink
     else
-        State.speedOn = false
-        if hum then hum.WalkSpeed = originalWalkSpeed end
-        SetToggle(SpeedToggle,false,"SPEED")
-        StatLbl.Text = "Speed reset → "..originalWalkSpeed
+        mainStat.Text="🎯 Aimbot OFF" mainStat.TextColor3=C.Sub
     end
-end)
+end
+aimbotBtn.MouseButton1Click:Connect(ToggleAimbot)
 
--- ============================================================
--- ESP TOGGLES
--- ============================================================
-EspObjToggle.MouseButton1Click:Connect(function()
-    State.espObj = not State.espObj
-    SetToggle(EspObjToggle,State.espObj,"🔵 ESP OBJECT",C.Accent2,C.Red)
+espObjBtn.MouseButton1Click:Connect(function()
+    State.espObj=not State.espObj
+    setEspObj(State.espObj)
     if not State.espObj then
-        for obj,_ in pairs(espObjects) do
-            if not scanEspObjects[obj] then RemoveObjEsp(obj) end
-        end
+        for obj,_ in pairs(espObjects) do if not scanEspMap[obj] then RemObjEsp(obj) end end
     end
-    EspStatLbl.Text = State.espObj and "🔵 ESP Object: ON" or "ESP: Standby"
+    espStat.Text=State.espObj and "🔵 ESP Object: ON" or "ESP: Standby"
+    espStat.TextColor3=State.espObj and C.Acc2 or C.Sub
 end)
-
-EspAvaToggle.MouseButton1Click:Connect(function()
-    State.espAvatar = not State.espAvatar
-    SetToggle(EspAvaToggle,State.espAvatar,"👤 ESP AVATAR",C.Pink,C.Red)
-    if not State.espAvatar then for p,_ in pairs(espAvatars) do RemoveAvaEsp(p) end end
-    EspStatLbl.Text = State.espAvatar and "👤 ESP Avatar: ON" or "ESP: Standby"
+espPlayersBtn.MouseButton1Click:Connect(function()
+    State.espPlayers=not State.espPlayers
+    setEspPlayers(State.espPlayers)
+    if not State.espPlayers then for p,_ in pairs(espPlayers) do RemPlayerEsp(p) end end
+    espStat.Text=State.espPlayers and "👤 ESP Players: ON" or "ESP: Standby"
+    espStat.TextColor3=State.espPlayers and C.Pink or C.Sub
 end)
-
-LockToggle.MouseButton1Click:Connect(function()
-    State.targetLock = not State.targetLock
-    SetToggle(LockToggle,State.targetLock,"🎯 TARGET LOCK",C.Orange,C.Red)
+lockBtn.MouseButton1Click:Connect(function()
+    State.targetLock=not State.targetLock
+    setLock(State.targetLock)
     if State.targetLock then
-        local t = FindNearestTarget()
-        if t then lockTarget=t EspStatLbl.Text="🎯 Lock: "..t.name
-        else
-            State.targetLock=false
-            SetToggle(LockToggle,false,"🎯 TARGET LOCK",C.Orange,C.Red)
-            EspStatLbl.Text="⚠️ Tidak ada target"
-        end
-    else lockTarget=nil EspStatLbl.Text="ESP: Standby" end
+        lockTarget=FindNearest()
+        if lockTarget then espStat.Text="🎯 Lock: "..lockTarget.name espStat.TextColor3=C.Orange
+        else State.targetLock=false setLock(false) espStat.Text="⚠️ Tidak ada target" espStat.TextColor3=C.Red end
+    else lockTarget=nil espStat.Text="ESP: Standby" espStat.TextColor3=C.Sub end
 end)
+local sliderDragging=false
+local godOffsetCard,godOffLbl,godOffFill,godOffKnob,getGodOff=MkSliderRow(mainScroll,"Godmode Offset",5,60,15,15)
 
--- ============================================================
--- HOTKEYS
--- ============================================================
-UserInputService.InputBegan:Connect(function(input,gp)
-    if gp then return end
-    if input.KeyCode == Enum.KeyCode.T then
-        if lockTarget then
-            lockTarget=nil State.targetLock=false
-            SetToggle(LockToggle,false,"🎯 TARGET LOCK",C.Orange,C.Red)
-            EspStatLbl.Text="🎯 Lock dilepas"
-        else
-            local t = FindNearestTarget()
-            if t then
-                lockTarget=t State.targetLock=true
-                SetToggle(LockToggle,true,"🎯 TARGET LOCK",C.Orange,C.Red)
-                EspStatLbl.Text="🎯 Lock: "..t.name
-            end
-        end
-    end
-    if input.KeyCode == Enum.KeyCode.G and State.targetLock then
-        local targets = GetAllTargets()
-        if #targets>1 and lockTarget then
-            local idx=1
-            for i,t in ipairs(targets) do if t.part==lockTarget.part then idx=i break end end
-            local nxt = targets[(idx%#targets)+1]
-            if nxt then lockTarget=nxt EspStatLbl.Text="🎯 Lock: "..nxt.name end
-        end
-    end
-end)
-
--- ============================================================
--- MAIN LOOPS
--- ============================================================
-RunService.Stepped:Connect(function()
+AddConn(RunService.Stepped:Connect(function()
     if State.godmode and godRealChar and godFakeChar then
-        local rRoot=godRealChar:FindFirstChild("HumanoidRootPart")
-        local fRoot=godFakeChar:FindFirstChild("HumanoidRootPart")
-        if rRoot and fRoot then
-            currentOffset = Lerp(currentOffset,State.offsetDist,0.1)
-            rRoot.CFrame  = fRoot.CFrame*CFrame.new(0,-currentOffset,0)
-            rRoot.Velocity = Vector3.new(0,0,0)
+        local rr=godRealChar:FindFirstChild("HumanoidRootPart")
+        local fr=godFakeChar:FindFirstChild("HumanoidRootPart")
+        if rr and fr then
+            local off=getGodOff()
+            rr.CFrame=fr.CFrame*CFrame.new(0,-off,0)
+            rr.Velocity=Vector3.new(0,0,0)
         end
     end
-    if sliderDrag then
-        local rel = UserInputService:GetMouseLocation().X - SliderTrack.AbsolutePosition.X
-        local pct = math.clamp(rel/SliderTrack.AbsoluteSize.X,0,1)
-        SliderKnob.Position = UDim2.new(pct,-8,0.5,-8)
-        SliderFill.Size     = UDim2.new(pct,0,1,0)
-        State.offsetDist    = math.floor(Lerp(5,50,pct))
-        SliderLbl.Text      = "Offset Godmode: "..State.offsetDist
+    if State.noclip then
+        local char=player.Character if not char then return end
+        for _,p2 in pairs(char:GetDescendants()) do
+            if p2:IsA("BasePart") then p2.CanCollide=false end
+        end
     end
-end)
+end))
 
-RunService.Heartbeat:Connect(function()
+AddConn(RunService.Heartbeat:Connect(function()
     if State.speedOn and not State.flying then
-        local hum = player.Character and player.Character:FindFirstChild("Humanoid")
-        if hum then hum.WalkSpeed = tonumber(SpeedInp.Text) or 120 end
+        local hum=HUM()
+        if hum then hum.WalkSpeed=tonumber(speedInp.Text) or 120 end
     end
     if State.ghost then
-        local char = player.Character
+        local char=player.Character
         if char then
             for _,v in pairs(char:GetDescendants()) do
                 if v:IsA("BasePart") and v.Name~="HumanoidRootPart" then
-                    v.LocalTransparencyModifier = 1
+                    v.LocalTransparencyModifier=1
                 end
             end
         end
     end
-    if State.espAvatar then RefreshAvaEsp() end
+    if State.espPlayers then RefreshPlayerEsp() end
     for obj,_ in pairs(espObjects) do
-        if not obj or not obj.Parent then RemoveObjEsp(obj)
-        else UpdateObjEspLabel(obj) end
+        if not obj or not obj.Parent then RemObjEsp(obj)
+        else UpdateEspLabel(obj) end
     end
-end)
+    if State.follow and State.followTarget then
+        local tp=Players:FindFirstChild(State.followTarget)
+        if tp and tp.Character then
+            local tr=tp.Character:FindFirstChild("HumanoidRootPart")
+            local myHrp=HRP()
+            if tr and myHrp then
+                local dist=(tr.Position-myHrp.Position).Magnitude
+                if dist>8 then
+                    myHrp.CFrame=CFrame.new(tr.Position+Vector3.new(math.random(-3,3),2,math.random(-3,3)))
+                end
+            end
+        end
+    end
+    if State.hitch and State.hitchTarget then
+        local tp=Players:FindFirstChild(State.hitchTarget)
+        if tp and tp.Character then
+            local tr=tp.Character:FindFirstChild("HumanoidRootPart")
+            local myHrp=HRP()
+            if tr and myHrp then
+                myHrp.CFrame=CFrame.new(tr.Position+Vector3.new(1.5,0,0))
+                myHrp.Velocity=Vector3.new(0,0,0)
+            end
+        end
+    end
+end))
 
-RunService.RenderStepped:Connect(function()
-    if State.targetLock and lockTarget and lockTarget.part then
-        local part = lockTarget.part
+AddConn(RunService.RenderStepped:Connect(function()
+    if (State.targetLock or State.aimbot) and lockTarget and lockTarget.part then
+        local part=lockTarget.part
         if not part.Parent then
-            local t = FindNearestTarget()
-            if t then lockTarget=t EspStatLbl.Text="🎯 Auto: "..t.name
-            else
-                State.targetLock=false lockTarget=nil
-                SetToggle(LockToggle,false,"🎯 TARGET LOCK",C.Orange,C.Red)
-                EspStatLbl.Text="⚠️ Target hilang"
+            lockTarget=FindNearest()
+            if not lockTarget then
+                if State.targetLock then State.targetLock=false setLock(false) espStat.Text="⚠️ Target hilang" espStat.TextColor3=C.Red end
+                if State.aimbot then State.aimbot=false setAimbot(false) end
             end
             return
         end
-        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        local hrp=HRP()
         if hrp then
-            local targetPos = part.Position+Vector3.new(0,1,0)
-            local fromPos   = camera.CFrame.Position
-            local dir       = targetPos-fromPos
+            local tpos=part.Position+Vector3.new(0,1,0)
+            local from=camera.CFrame.Position
+            local dir=tpos-from
             if dir.Magnitude>0.5 then
-                camera.CFrame = camera.CFrame:Lerp(CFrame.lookAt(fromPos,targetPos),0.12)
+                if State.aimbot then
+                    camera.CFrame=CFrame.lookAt(from,tpos)
+                else
+                    camera.CFrame=camera.CFrame:Lerp(CFrame.lookAt(from,tpos),0.1)
+                end
             end
-            local dist = math.floor((part.Position-hrp.Position).Magnitude)
-            EspStatLbl.Text = "🎯 "..lockTarget.name.." | "..dist.."st"
+            local dist=(part.Position-hrp.Position).Magnitude
+            espStat.Text=(State.aimbot and "🎯 AIMBOT: " or "🎯 Lock: ")..lockTarget.name.."  |  "..math.floor(dist).."st"
+            espStat.TextColor3=C.Orange
         end
     end
+end))
+
+AddConn(UserInputService.InputBegan:Connect(function(input,gp)
+    if gp then return end
+    if input.KeyCode==Enum.KeyCode.T then
+        if lockTarget then lockTarget=nil State.targetLock=false setLock(false) espStat.Text="🎯 Lock OFF" espStat.TextColor3=C.Sub
+        else
+            lockTarget=FindNearest()
+            if lockTarget then State.targetLock=true setLock(true) espStat.Text="🎯 Lock: "..lockTarget.name espStat.TextColor3=C.Orange end
+        end
+    end
+    if input.KeyCode==Enum.KeyCode.G and (State.targetLock or State.aimbot) then
+        local tgts=GetAllTargets()
+        if #tgts>1 and lockTarget then
+            local idx=1
+            for i2,t2 in ipairs(tgts) do if t2.part==lockTarget.part then idx=i2 break end end
+            local nxt=tgts[(idx%#tgts)+1]
+            if nxt then lockTarget=nxt espStat.Text="🎯 → "..nxt.name espStat.TextColor3=C.Orange end
+        end
+    end
+    if input.KeyCode==Enum.KeyCode.F5 then
+        DoScan()
+    end
+    if input.KeyCode==Enum.KeyCode.B then
+        if backPos then
+            local hrp=HRP()
+            if hrp then
+                local curr=hrp.Position
+                hrp.CFrame=CFrame.new(backPos+Vector3.new(0,2,0))
+                backPos=curr
+                mainStat.Text="↩️ Back!" mainStat.TextColor3=C.Gold
+            end
+        end
+    end
+end))
+
+Players.PlayerRemoving:Connect(function(p)
+    RemPlayerEsp(p)
+    if State.followTarget==p.Name then State.follow=false State.followTarget=nil end
+    if State.hitchTarget==p.Name then State.hitch=false State.hitchTarget=nil end
 end)
 
--- ============================================================
--- MINIMIZE / CLOSE
--- ============================================================
-local minimized = false
+local minimized=false
 MinBtn.MouseButton1Click:Connect(function()
-    minimized = not minimized
+    minimized=not minimized
     if minimized then
         TabBar.Visible=false ContentArea.Visible=false
-        Tween(Main,0.22,{Size=UDim2.new(0,340,0,44)}) MinBtn.Text="+"
+        Tw(Main,0.22,{Size=UDim2.new(0,360,0,50)}) MinBtn.Text="+"
     else
         TabBar.Visible=true ContentArea.Visible=true
-        Tween(Main,0.22,{Size=UDim2.new(0,340,0,470)}) MinBtn.Text="−"
+        Tw(Main,0.22,{Size=UDim2.new(0,360,0,510)}) MinBtn.Text="−"
     end
 end)
 
 CloseBtn.MouseButton1Click:Connect(function()
     if State.godmode then ToggleGodmode() end
     if magnetConn then magnetConn:Disconnect() end
+    if flyConn then flyConn:Disconnect() end
+    if noclipConn then noclipConn:Disconnect() end
+    if instantEConn then instantEConn:Disconnect() end
+    if freecamConn then freecamConn:Disconnect() end
+    if freecamPart then freecamPart:Destroy() end
     if currentHL then currentHL:Destroy() end
     if espContainer then espContainer:Destroy() end
-    Tween(Main,0.18,{BackgroundTransparency=1})
-    task.wait(0.2) sg:Destroy()
+    camera.CameraType=Enum.CameraType.Custom
+    for _,c in pairs(Conns) do pcall(function() c:Disconnect() end) end
+    Tw(Main,0.18,{BackgroundTransparency=1,Size=UDim2.new(0,360,0,0)})
+    task.wait(0.22) sg:Destroy()
 end)
 
-RunService.Heartbeat:Connect(function()
-    if sg and not sg.Parent then sg.Parent = player.PlayerGui end
-end)
+AddConn(RunService.Heartbeat:Connect(function()
+    if sg and not sg.Parent then sg.Parent=player.PlayerGui end
+end))
 
--- ============================================================
--- INIT
--- ============================================================
 SwitchTab("MAIN")
-
-print([[
-╔════════════════════════════════════╗
-║    CyRuZzz Hub Loaded              ║
-║  MAIN | ESP | SCAN | AUTO | REMOT  ║
-║  T=TargetLock   G=NextTarget       ║
-║  AUTO: edit remote + PICK          ║
-║  INJECT: Paste kode → langsung run ║
-╚════════════════════════════════════╝
-]])
+BuildPlayerList()
+print("CyRuZzZ Hub v3.0 Loaded | T=Lock | G=NextTarget | B=Back | F5=Scan")
