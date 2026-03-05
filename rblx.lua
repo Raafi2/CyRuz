@@ -7,13 +7,17 @@ local Lighting=game:GetService("Lighting")
 local HttpService=game:GetService("HttpService")
 local ContextActionService=game:GetService("ContextActionService")
 
--- WAIT for LocalPlayer - executor runs in CoreGui where LocalPlayer can be nil
+-- Wait for LocalPlayer (compatible with all executors including Xeno)
 local player=Players.LocalPlayer
 if not player then
-    player=Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
-    player=Players.LocalPlayer
+    local attempts=0
+    repeat
+        task.wait(0.1)
+        player=Players.LocalPlayer
+        attempts=attempts+1
+    until player or attempts>100
 end
-if not player then repeat task.wait() player=Players.LocalPlayer until player end
+if not player then error("LocalPlayer not found") end
 
 local camera=workspace.CurrentCamera
 local mouse=nil
