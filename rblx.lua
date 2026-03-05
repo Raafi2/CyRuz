@@ -8,7 +8,8 @@ local HttpService=game:GetService("HttpService")
 local ContextActionService=game:GetService("ContextActionService")
 local player=Players.LocalPlayer
 local camera=workspace.CurrentCamera
-local mouse=player:GetMouse()
+local mouse=nil
+pcall(function() mouse=player:GetMouse() end)
 
 for _,ui in pairs(player.PlayerGui:GetChildren()) do
     if ui.Name=="CyRuZzz_Hub" then ui:Destroy() end
@@ -1356,19 +1357,23 @@ local function ToggleClickTP()
     State.clickTP=not State.clickTP
     setClickTP(State.clickTP)
     if State.clickTP then
-        clickTPConn=mouse.Button1Down:Connect(function()
-            if not State.clickTP then return end
-            local target2=mouse.Target
-            local hit2=mouse.Hit
-            if hit2 then
-                local hrp=HRP()
-                if hrp then
-                    backPos=hrp.Position
-                    hrp.CFrame=CFrame.new(hit2.Position+Vector3.new(0,3,0))
+        if mouse then
+            clickTPConn=mouse.Button1Down:Connect(function()
+                if not State.clickTP then return end
+                local hit2=mouse.Hit
+                if hit2 then
+                    local hrp=HRP()
+                    if hrp then
+                        backPos=hrp.Position
+                        hrp.CFrame=CFrame.new(hit2.Position+Vector3.new(0,3,0))
+                    end
                 end
-            end
-        end)
-        mainStat.Text="🖱 Click TP ON" mainStat.TextColor3=C.Acc2
+            end)
+            mainStat.Text="🖱 Click TP ON" mainStat.TextColor3=C.Acc2
+        else
+            State.clickTP=false setClickTP(false)
+            mainStat.Text="⚠️ Mouse API tidak tersedia" mainStat.TextColor3=C.Red
+        end
     else
         if clickTPConn then clickTPConn:Disconnect() clickTPConn=nil end
         mainStat.Text="🖱 Click TP OFF" mainStat.TextColor3=C.Sub
@@ -1392,7 +1397,7 @@ local function ToggleInstantE()
                     if ppPart and ppPart:IsA("BasePart") then
                         local dist2=(ppPart.Position-hrp.Position).Magnitude
                         if dist2<=(pp.MaxActivationDistance or 10)+5 then
-                            pcall(function() fireproximityprompt(pp) end)
+                            pcall(function() if typeof(fireproximityprompt)=="function" then fireproximityprompt(pp) end end)
                         end
                     end
                 end
@@ -1401,7 +1406,7 @@ local function ToggleInstantE()
                     if cdPart and cdPart:IsA("BasePart") then
                         local dist3=(cdPart.Position-hrp.Position).Magnitude
                         if dist3<=(obj.MaxActivationDistance or 32) then
-                            pcall(function() fireclickdetector(obj) end)
+                            pcall(function() if typeof(fireclickdetector)=="function" then fireclickdetector(obj) end end)
                         end
                     end
                 end
@@ -1725,7 +1730,12 @@ CloseBtn.MouseButton1Click:Connect(function()
 end)
 
 AddConn(RunService.Heartbeat:Connect(function()
-    if sg and not sg.Parent then sg.Parent=player.PlayerGui end
+    if sg and not sg.Parent then
+        pcall(function()
+            if typeof(gethui)=="function" then sg.Parent=gethui()
+            else sg.Parent=player.PlayerGui end
+        end)
+    end
 end))
 
 SwitchTab("MAIN")
