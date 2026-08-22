@@ -41,7 +41,7 @@ SG.Parent         = LP:WaitForChild("PlayerGui")
 
 local Panel = Instance.new("Frame")
 Panel.Name                   = "Panel"
-Panel.Size                   = UDim2.new(0, 230, 0, 494) -- Diperpanjang untuk controller Walk Speed
+Panel.Size                   = UDim2.new(0, 230, 0, 494)
 Panel.Position               = UDim2.new(0, 16, 0.5, -247)
 Panel.BackgroundColor3       = Color3.fromRGB(18, 20, 32)
 Panel.BackgroundTransparency = 0
@@ -209,9 +209,34 @@ end
 local flyClick,    setFlyOn    = makeToggle("Fly Mode",       "T", 48,  Color3.fromRGB(55,195,95))
 local noclipClick, setNoclipOn = makeToggle("Noclip",         "C", 100, Color3.fromRGB(175,75,250))
 local speedClick,  setSpeedOn  = makeToggle("Walk Speed",     "Q", 152, Color3.fromRGB(255,150,50))
-local espClick,    setEspOn    = makeToggle("ESP & Red Body", "-", 204, Color3.fromRGB(255,60,110)) -- Tidak ada hotkey
+local espClick,    setEspOn    = makeToggle("ESP & Red Body", "-", 204, Color3.fromRGB(255,60,110))
 local tp1Btn, tp1Lbl           = makeTpRow("Teleport 1",      "H", 256, 45, 105, 225)
 local tp2Btn, tp2Lbl           = makeTpRow("Teleport 2",      "J", 308, 205, 55, 55)
+
+-- ============================================================
+--  ADD ESP REFRESH BUTTON
+-- ============================================================
+local espRow = espClick.Parent
+local espRefreshBtn = Instance.new("TextButton")
+espRefreshBtn.Size = UDim2.new(0, 45, 0, 22)
+espRefreshBtn.Position = UDim2.new(1, -95, 0.5, -11)
+espRefreshBtn.BackgroundColor3 = Color3.fromRGB(50, 60, 90)
+espRefreshBtn.BorderSizePixel = 0
+espRefreshBtn.Text = "RELOAD"
+espRefreshBtn.TextColor3 = Color3.fromRGB(200, 210, 255)
+espRefreshBtn.Font = Enum.Font.GothamBold
+espRefreshBtn.TextSize = 9
+espRefreshBtn.AutoButtonColor = false
+espRefreshBtn.ZIndex = 15
+espRefreshBtn.Parent = espRow
+Instance.new("UICorner", espRefreshBtn).CornerRadius = UDim.new(0, 6)
+
+espRefreshBtn.MouseEnter:Connect(function()
+    TweenService:Create(espRefreshBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(70, 85, 125)}):Play()
+end)
+espRefreshBtn.MouseLeave:Connect(function()
+    TweenService:Create(espRefreshBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(50, 60, 90)}):Play()
+end)
 
 -- ============================================================
 --  SPEED CONTROLLERS (Fly & Walk)
@@ -385,7 +410,6 @@ local function createEspGui(plr)
     
     local espData = {}
     
-    -- Text Label ESP
     local espHolder = Instance.new("BillboardGui")
     espHolder.Name = "_CyESP_" .. plr.Name
     espHolder.AlwaysOnTop = true
@@ -403,7 +427,6 @@ local function createEspGui(plr)
     nameLbl.TextSize = 11
     nameLbl.Parent = espHolder
     
-    -- Red Body Chams (Highlight)
     local highlight = Instance.new("Highlight")
     highlight.Name = "_CyChams_" .. plr.Name
     highlight.FillColor = Color3.fromRGB(255, 0, 0)
@@ -411,7 +434,6 @@ local function createEspGui(plr)
     highlight.FillTransparency = 0.5
     highlight.OutlineTransparency = 0.1
 
-    -- Terapkan ke PlayerGui (agar Executor tidak error saat injeksi CoreGui)
     local success = pcall(function() 
         espHolder.Parent = game:GetService("CoreGui")
         highlight.Parent = game:GetService("CoreGui")
@@ -474,6 +496,15 @@ local function disableEsp()
     end
     table.clear(espObjects)
 end
+
+-- Logika tombol Refresh ESP
+espRefreshBtn.MouseButton1Click:Connect(function()
+    if espEnabled then
+        disableEsp() -- Hapus semua tag lama
+        task.wait(0.1)
+        enableEsp()  -- Muat ulang ke model karakter yang baru
+    end
+end)
 
 -- ============================================================
 --  TELEPORT
@@ -539,7 +570,6 @@ UserInputService.InputBegan:Connect(function(inp, gp)
     elseif k == Enum.KeyCode.Q then
         speedEnabled = not speedEnabled; setSpeedOn(speedEnabled)
         if speedEnabled then enableSpeed() else disableSpeed() end
-    -- Tombol E sudah dicabut dari ESP
     elseif k == Enum.KeyCode.H then doTp(1)
     elseif k == Enum.KeyCode.J then doTp(2)
     end
