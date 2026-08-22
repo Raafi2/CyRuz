@@ -1,6 +1,6 @@
 -- ============================================================
 --  CyRuZzz Panel | Roblox LocalScript
---  [T] Fly  [C] Noclip  [Q] Speed  [E] ESP  [H] TP1  [J] TP2
+--  [T] Fly  [C] Noclip  [Q] WalkSpeed  [H] TP1  [J] TP2
 -- ============================================================
 
 local Players          = game:GetService("Players")
@@ -41,8 +41,8 @@ SG.Parent         = LP:WaitForChild("PlayerGui")
 
 local Panel = Instance.new("Frame")
 Panel.Name                   = "Panel"
-Panel.Size                   = UDim2.new(0, 230, 0, 464) -- Diperpanjang untuk muat menu ESP
-Panel.Position               = UDim2.new(0, 16, 0.5, -232)
+Panel.Size                   = UDim2.new(0, 230, 0, 494) -- Diperpanjang untuk controller Walk Speed
+Panel.Position               = UDim2.new(0, 16, 0.5, -247)
 Panel.BackgroundColor3       = Color3.fromRGB(18, 20, 32)
 Panel.BackgroundTransparency = 0
 Panel.BorderSizePixel        = 0
@@ -68,7 +68,6 @@ do
     })
     g.Parent = TB
     local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,14); c.Parent = TB
-    -- patch straight bottom edge
     local p = Instance.new("Frame")
     p.Size = UDim2.new(1,0,0,14); p.Position = UDim2.new(0,0,1,-14)
     p.BackgroundColor3 = Color3.fromRGB(80,50,230); p.BorderSizePixel = 0; p.ZIndex = 11; p.Parent = TB
@@ -122,24 +121,20 @@ end
 local function makeToggle(label, hotkey, posY, onCol)
     local row, rowStroke = makeRow(posY)
 
-    -- dot indicator
     local dot = Instance.new("Frame")
     dot.Size = UDim2.new(0,8,0,8); dot.Position = UDim2.new(0,12,0.5,-4)
     dot.BackgroundColor3 = Color3.fromRGB(70,80,120); dot.BorderSizePixel = 0
     dot.ZIndex = 12; dot.Parent = row
     Instance.new("UICorner", dot).CornerRadius = UDim.new(1,0)
 
-    -- main label
     makeLabel(row, label,
         UDim2.new(1,-80,0,20), UDim2.new(0,26,0,5),
         Color3.fromRGB(205,215,255), Enum.Font.GothamSemibold, 12)
 
-    -- sub label (status)
     local sub = makeLabel(row, "["..hotkey.."]  OFF",
         UDim2.new(1,-80,0,14), UDim2.new(0,26,0,24),
         Color3.fromRGB(85,100,150), Enum.Font.Gotham, 9)
 
-    -- pill toggle
     local pill = Instance.new("Frame")
     pill.Size = UDim2.new(0,38,0,20); pill.Position = UDim2.new(1,-46,0.5,-10)
     pill.BackgroundColor3 = Color3.fromRGB(45,50,75); pill.BorderSizePixel = 0
@@ -152,7 +147,6 @@ local function makeToggle(label, hotkey, posY, onCol)
     knob.ZIndex = 13; knob.Parent = pill
     Instance.new("UICorner", knob).CornerRadius = UDim.new(1,0)
 
-    -- invisible click catcher
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1,0,1,0); btn.BackgroundTransparency = 1
     btn.Text = ""; btn.TextColor3 = Color3.fromRGB(255,255,255)
@@ -185,7 +179,6 @@ end
 local function makeTpRow(label, hotkey, posY, r, g, b)
     local ac = Color3.fromRGB(r, g, b)
     local hc = Color3.fromRGB(math.min(r+40,255), math.min(g+40,255), math.min(b+40,255))
-
     local row, _ = makeRow(posY)
 
     makeLabel(row, label.."  ["..hotkey.."]",
@@ -204,94 +197,94 @@ local function makeTpRow(label, hotkey, posY, r, g, b)
     setBtn.AutoButtonColor = false; setBtn.ZIndex = 12; setBtn.Parent = row
     Instance.new("UICorner", setBtn).CornerRadius = UDim.new(0,8)
 
-    setBtn.MouseEnter:Connect(function()
-        TweenService:Create(setBtn, TweenInfo.new(0.12), {BackgroundColor3 = hc}):Play()
-    end)
-    setBtn.MouseLeave:Connect(function()
-        TweenService:Create(setBtn, TweenInfo.new(0.12), {BackgroundColor3 = ac}):Play()
-    end)
+    setBtn.MouseEnter:Connect(function() TweenService:Create(setBtn, TweenInfo.new(0.12), {BackgroundColor3 = hc}):Play() end)
+    setBtn.MouseLeave:Connect(function() TweenService:Create(setBtn, TweenInfo.new(0.12), {BackgroundColor3 = ac}):Play() end)
 
     return setBtn, coord
 end
 
 -- ============================================================
---  BUILD ROWS (Disesuaikan posisinya)
+--  BUILD MENUS
 -- ============================================================
-local flyClick,    setFlyOn    = makeToggle("Fly Mode",   "T", 48,  Color3.fromRGB(55,195,95))
-local noclipClick, setNoclipOn = makeToggle("Noclip",     "C", 100, Color3.fromRGB(175,75,250))
-local speedClick,  setSpeedOn  = makeToggle("Walk Speed", "Q", 152, Color3.fromRGB(255,150,50))
-local espClick,    setEspOn    = makeToggle("ESP Name",   "E", 204, Color3.fromRGB(255,60,110))
-local tp1Btn, tp1Lbl           = makeTpRow("Teleport 1",  "H", 256, 45, 105, 225)
-local tp2Btn, tp2Lbl           = makeTpRow("Teleport 2",  "J", 308, 205, 55, 55)
+local flyClick,    setFlyOn    = makeToggle("Fly Mode",       "T", 48,  Color3.fromRGB(55,195,95))
+local noclipClick, setNoclipOn = makeToggle("Noclip",         "C", 100, Color3.fromRGB(175,75,250))
+local speedClick,  setSpeedOn  = makeToggle("Walk Speed",     "Q", 152, Color3.fromRGB(255,150,50))
+local espClick,    setEspOn    = makeToggle("ESP & Red Body", "-", 204, Color3.fromRGB(255,60,110)) -- Tidak ada hotkey
+local tp1Btn, tp1Lbl           = makeTpRow("Teleport 1",      "H", 256, 45, 105, 225)
+local tp2Btn, tp2Lbl           = makeTpRow("Teleport 2",      "J", 308, 205, 55, 55)
 
 -- ============================================================
---  FLY SPEED CONTROL
+--  SPEED CONTROLLERS (Fly & Walk)
 -- ============================================================
-local speedRow = Instance.new("Frame")
-speedRow.Size = UDim2.new(1,-20,0,44); speedRow.Position = UDim2.new(0,10,0,360)
-speedRow.BackgroundColor3 = BASE_COL; speedRow.BorderSizePixel = 0
-speedRow.ZIndex = 11; speedRow.Parent = Panel
-Instance.new("UICorner", speedRow).CornerRadius = UDim.new(0,10)
-do local s = Instance.new("UIStroke"); s.Color = STROKE_COL; s.Thickness = 1; s.Parent = speedRow end
+local function makeControlRow(title, posY, val, minV, maxV, onUpdate)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1,-20,0,44); row.Position = UDim2.new(0,10,0,posY)
+    row.BackgroundColor3 = BASE_COL; row.BorderSizePixel = 0
+    row.ZIndex = 11; row.Parent = Panel
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0,10)
+    do local s = Instance.new("UIStroke"); s.Color = STROKE_COL; s.Thickness = 1; s.Parent = row end
 
-makeLabel(speedRow, "Fly Speed",
-    UDim2.new(0.4,0,0,18), UDim2.new(0,12,0,4),
-    Color3.fromRGB(205,215,255), Enum.Font.GothamSemibold, 11)
+    makeLabel(row, title,
+        UDim2.new(0.4,0,0,18), UDim2.new(0,12,0,4),
+        Color3.fromRGB(205,215,255), Enum.Font.GothamSemibold, 11)
 
-local speedVal = makeLabel(speedRow, tostring(flySpeed),
-    UDim2.new(0.2,0,0,18), UDim2.new(0.4,0,0,4),
-    Color3.fromRGB(130,175,255), Enum.Font.GothamBold, 12, Enum.TextXAlignment.Center)
+    local valLbl = makeLabel(row, tostring(val),
+        UDim2.new(0.2,0,0,18), UDim2.new(0.4,0,0,4),
+        Color3.fromRGB(130,175,255), Enum.Font.GothamBold, 12, Enum.TextXAlignment.Center)
 
--- bar visual
-local barBg = Instance.new("Frame")
-barBg.Size = UDim2.new(1,-24,0,4); barBg.Position = UDim2.new(0,12,1,-10)
-barBg.BackgroundColor3 = Color3.fromRGB(38,42,64); barBg.BorderSizePixel = 0
-barBg.ZIndex = 12; barBg.Parent = speedRow
-Instance.new("UICorner", barBg).CornerRadius = UDim.new(1,0)
+    local barBg = Instance.new("Frame")
+    barBg.Size = UDim2.new(1,-24,0,4); barBg.Position = UDim2.new(0,12,1,-10)
+    barBg.BackgroundColor3 = Color3.fromRGB(38,42,64); barBg.BorderSizePixel = 0
+    barBg.ZIndex = 12; barBg.Parent = row
+    Instance.new("UICorner", barBg).CornerRadius = UDim.new(1,0)
 
-local barFill = Instance.new("Frame")
-barFill.Size = UDim2.new((flySpeed-10)/190,0,1,0)
-barFill.BackgroundColor3 = Color3.fromRGB(80,130,255)
-barFill.BorderSizePixel = 0; barFill.ZIndex = 13; barFill.Parent = barBg
-Instance.new("UICorner", barFill).CornerRadius = UDim.new(1,0)
+    local barFill = Instance.new("Frame")
+    barFill.Size = UDim2.new((val-minV)/(maxV-minV),0,1,0)
+    barFill.BackgroundColor3 = Color3.fromRGB(80,130,255)
+    barFill.BorderSizePixel = 0; barFill.ZIndex = 13; barFill.Parent = barBg
+    Instance.new("UICorner", barFill).CornerRadius = UDim.new(1,0)
 
-local function makeSpeedBtn(txt, posX, delta)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.new(0,28,0,22); b.Position = UDim2.new(1, posX, 0, 5)
-    b.BackgroundColor3 = Color3.fromRGB(38,45,72); b.BorderSizePixel = 0
-    b.Text = txt; b.TextColor3 = Color3.fromRGB(180,200,255)
-    b.Font = Enum.Font.GothamBold; b.TextSize = 14
-    b.AutoButtonColor = false; b.ZIndex = 12; b.Parent = speedRow
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0,7)
+    local function makeBtn(txt, posX, delta)
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.new(0,28,0,22); b.Position = UDim2.new(1, posX, 0, 5)
+        b.BackgroundColor3 = Color3.fromRGB(38,45,72); b.BorderSizePixel = 0
+        b.Text = txt; b.TextColor3 = Color3.fromRGB(180,200,255)
+        b.Font = Enum.Font.GothamBold; b.TextSize = 14
+        b.AutoButtonColor = false; b.ZIndex = 12; b.Parent = row
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0,7)
 
-    local function upd()
-        flySpeed = math.clamp(flySpeed + delta, 10, 200)
-        speedVal.Text = tostring(flySpeed)
-        barFill.Size  = UDim2.new((flySpeed-10)/190, 0, 1, 0)
-    end
-    b.MouseButton1Click:Connect(upd)
-    
-    local held = false
-    b.MouseButton1Down:Connect(function()
-        held = true
-        task.spawn(function()
-            task.wait(0.4)
-            while held do upd(); task.wait(0.08) end
+        local function upd()
+            val = math.clamp(val + delta, minV, maxV)
+            valLbl.Text = tostring(val)
+            barFill.Size = UDim2.new((val-minV)/(maxV-minV), 0, 1, 0)
+            onUpdate(val)
+        end
+        b.MouseButton1Click:Connect(upd)
+        
+        local held = false
+        b.MouseButton1Down:Connect(function()
+            held = true
+            task.spawn(function()
+                task.wait(0.4)
+                while held do upd(); task.wait(0.08) end
+            end)
         end)
-    end)
-    b.MouseButton1Up:Connect(function() held = false end)
-    b.MouseLeave:Connect(function() held = false end)
-    return b
+        b.MouseButton1Up:Connect(function() held = false end)
+        b.MouseLeave:Connect(function() held = false end)
+    end
+
+    makeBtn("-", -62, -5)
+    makeBtn("+", -30, 5)
 end
 
-makeSpeedBtn("-", -62, -5)
-makeSpeedBtn("+", -30, 5)
+makeControlRow("Fly Speed",  360, flySpeed,     10, 300, function(v) flySpeed = v end)
+makeControlRow("Walk Speed", 412, walkSpeedVal, 16, 300, function(v) walkSpeedVal = v end)
 
 -- ============================================================
 --  FOOTER
 -- ============================================================
 local foot = Instance.new("TextLabel")
-foot.Size = UDim2.new(1,0,0,16); foot.Position = UDim2.new(0,0,0,442)
+foot.Size = UDim2.new(1,0,0,16); foot.Position = UDim2.new(0,0,0,470)
 foot.BackgroundTransparency = 1; foot.Text = "CyRuZzz  •  drag panel to move"
 foot.TextColor3 = Color3.fromRGB(45,55,85); foot.Font = Enum.Font.Gotham
 foot.TextSize = 9; foot.ZIndex = 11; foot.Parent = Panel
@@ -373,9 +366,7 @@ local function enableSpeed()
         if not speedEnabled then return end
         local c = getChar()
         local hum = c and c:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.WalkSpeed = walkSpeedVal
-        end
+        if hum then hum.WalkSpeed = walkSpeedVal end
     end)
 end
 
@@ -387,20 +378,19 @@ local function disableSpeed()
 end
 
 -- ============================================================
---  ESP NAME
+--  ESP NAME & RED BODY (CHAMS)
 -- ============================================================
 local function createEspGui(plr)
     if plr == LP or espObjects[plr] then return end
     
+    local espData = {}
+    
+    -- Text Label ESP
     local espHolder = Instance.new("BillboardGui")
     espHolder.Name = "_CyESP_" .. plr.Name
     espHolder.AlwaysOnTop = true
     espHolder.Size = UDim2.new(0, 100, 0, 40)
     espHolder.StudsOffset = Vector3.new(0, 2.5, 0)
-    
-    -- Executor fallback
-    local success = pcall(function() espHolder.Parent = game:GetService("CoreGui") end)
-    if not success then espHolder.Parent = LP:WaitForChild("PlayerGui") end
     
     local nameLbl = Instance.new("TextLabel")
     nameLbl.Size = UDim2.new(1, 0, 1, 0)
@@ -412,13 +402,34 @@ local function createEspGui(plr)
     nameLbl.Font = Enum.Font.GothamBold
     nameLbl.TextSize = 11
     nameLbl.Parent = espHolder
+    
+    -- Red Body Chams (Highlight)
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "_CyChams_" .. plr.Name
+    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+    highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0.1
 
-    espObjects[plr] = espHolder
+    -- Terapkan ke PlayerGui (agar Executor tidak error saat injeksi CoreGui)
+    local success = pcall(function() 
+        espHolder.Parent = game:GetService("CoreGui")
+        highlight.Parent = game:GetService("CoreGui")
+    end)
+    if not success then 
+        espHolder.Parent = LP:WaitForChild("PlayerGui") 
+        highlight.Parent = LP:WaitForChild("PlayerGui")
+    end
+
+    espData.Billboard = espHolder
+    espData.Highlight = highlight
+    espObjects[plr] = espData
 end
 
 local function removeEspGui(plr)
     if espObjects[plr] then
-        espObjects[plr]:Destroy()
+        if espObjects[plr].Billboard then espObjects[plr].Billboard:Destroy() end
+        if espObjects[plr].Highlight then espObjects[plr].Highlight:Destroy() end
         espObjects[plr] = nil
     end
 end
@@ -432,18 +443,22 @@ local function enableEsp()
     
     espConn = RunService.RenderStepped:Connect(function()
         if not espEnabled then return end
-        for plr, gui in pairs(espObjects) do
+        for plr, data in pairs(espObjects) do
             local char = plr.Character
             if char and char:FindFirstChild("Head") then
                 local hum = char:FindFirstChildOfClass("Humanoid")
                 if hum and hum.Health > 0 then
-                    gui.Adornee = char.Head
-                    gui.Enabled = true
+                    data.Billboard.Adornee = char.Head
+                    data.Billboard.Enabled = true
+                    data.Highlight.Adornee = char
+                    data.Highlight.Enabled = true
                 else
-                    gui.Enabled = false
+                    data.Billboard.Enabled = false
+                    data.Highlight.Enabled = false
                 end
             else
-                gui.Enabled = false
+                data.Billboard.Enabled = false
+                data.Highlight.Enabled = false
             end
         end
     end)
@@ -524,9 +539,7 @@ UserInputService.InputBegan:Connect(function(inp, gp)
     elseif k == Enum.KeyCode.Q then
         speedEnabled = not speedEnabled; setSpeedOn(speedEnabled)
         if speedEnabled then enableSpeed() else disableSpeed() end
-    elseif k == Enum.KeyCode.E then
-        espEnabled = not espEnabled; setEspOn(espEnabled)
-        if espEnabled then enableEsp() else disableEsp() end
+    -- Tombol E sudah dicabut dari ESP
     elseif k == Enum.KeyCode.H then doTp(1)
     elseif k == Enum.KeyCode.J then doTp(2)
     end
@@ -542,4 +555,4 @@ LP.CharacterAdded:Connect(function()
     if speedEnabled  then enableSpeed()  end
 end)
 
-print("[CyRuZzz] Ready! T=Fly | C=Noclip | Q=Speed | E=ESP | H=TP1 | J=TP2")
+print("[CyRuZzz] Ready! T=Fly | C=Noclip | Q=WalkSpeed | H=TP1 | J=TP2")
