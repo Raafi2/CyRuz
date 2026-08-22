@@ -1,6 +1,6 @@
 -- ============================================================
 --  CyRuZzz Panel | Roblox LocalScript
---  [T] Fly  [C] Noclip  [Q] Speed  [H] TP1  [J] TP2
+--  [T] Fly  [C] Noclip  [Q] Speed  [E] ESP  [H] TP1  [J] TP2
 -- ============================================================
 
 local Players          = game:GetService("Players")
@@ -14,6 +14,7 @@ local Camera = workspace.CurrentCamera
 local flyEnabled    = false
 local noclipEnabled = false
 local speedEnabled  = false
+local espEnabled    = false
 local tp1Pos        = nil
 local tp2Pos        = nil
 local flyConn       = nil
@@ -21,6 +22,12 @@ local noclipConn    = nil
 local speedConn     = nil
 local flySpeed      = 60
 local walkSpeedVal  = 100
+
+-- ESP variables
+local espObjects          = {}
+local espConn             = nil
+local espPlayerAddedConn  = nil
+local espPlayerRemoveConn = nil
 
 -- ============================================================
 --  GUI
@@ -34,8 +41,8 @@ SG.Parent         = LP:WaitForChild("PlayerGui")
 
 local Panel = Instance.new("Frame")
 Panel.Name                   = "Panel"
-Panel.Size                   = UDim2.new(0, 230, 0, 412) -- Diperpanjang untuk muat menu Speed
-Panel.Position               = UDim2.new(0, 16, 0.5, -206)
+Panel.Size                   = UDim2.new(0, 230, 0, 464) -- Diperpanjang untuk muat menu ESP
+Panel.Position               = UDim2.new(0, 16, 0.5, -232)
 Panel.BackgroundColor3       = Color3.fromRGB(18, 20, 32)
 Panel.BackgroundTransparency = 0
 Panel.BorderSizePixel        = 0
@@ -75,7 +82,7 @@ TitleLbl.TextColor3 = Color3.fromRGB(230,240,255); TitleLbl.Font = Enum.Font.Got
 TitleLbl.TextSize = 13; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
 TitleLbl.ZIndex = 12; TitleLbl.Parent = TB
 
--- close (TextButton with explicit TextColor3 = no nil)
+-- close (TextButton)
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0,26,0,26); CloseBtn.Position = UDim2.new(1,-32,0.5,-13)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(210,45,65); CloseBtn.BorderSizePixel = 0
@@ -208,19 +215,20 @@ local function makeTpRow(label, hotkey, posY, r, g, b)
 end
 
 -- ============================================================
---  BUILD ROWS
+--  BUILD ROWS (Disesuaikan posisinya)
 -- ============================================================
 local flyClick,    setFlyOn    = makeToggle("Fly Mode",   "T", 48,  Color3.fromRGB(55,195,95))
 local noclipClick, setNoclipOn = makeToggle("Noclip",     "C", 100, Color3.fromRGB(175,75,250))
 local speedClick,  setSpeedOn  = makeToggle("Walk Speed", "Q", 152, Color3.fromRGB(255,150,50))
-local tp1Btn, tp1Lbl           = makeTpRow("Teleport 1",  "H", 204, 45, 105, 225)
-local tp2Btn, tp2Lbl           = makeTpRow("Teleport 2",  "J", 256, 205, 55, 55)
+local espClick,    setEspOn    = makeToggle("ESP Name",   "E", 204, Color3.fromRGB(255,60,110))
+local tp1Btn, tp1Lbl           = makeTpRow("Teleport 1",  "H", 256, 45, 105, 225)
+local tp2Btn, tp2Lbl           = makeTpRow("Teleport 2",  "J", 308, 205, 55, 55)
 
 -- ============================================================
 --  FLY SPEED CONTROL
 -- ============================================================
 local speedRow = Instance.new("Frame")
-speedRow.Size = UDim2.new(1,-20,0,44); speedRow.Position = UDim2.new(0,10,0,308)
+speedRow.Size = UDim2.new(1,-20,0,44); speedRow.Position = UDim2.new(0,10,0,360)
 speedRow.BackgroundColor3 = BASE_COL; speedRow.BorderSizePixel = 0
 speedRow.ZIndex = 11; speedRow.Parent = Panel
 Instance.new("UICorner", speedRow).CornerRadius = UDim.new(0,10)
@@ -283,7 +291,7 @@ makeSpeedBtn("+", -30, 5)
 --  FOOTER
 -- ============================================================
 local foot = Instance.new("TextLabel")
-foot.Size = UDim2.new(1,0,0,16); foot.Position = UDim2.new(0,0,0,390)
+foot.Size = UDim2.new(1,0,0,16); foot.Position = UDim2.new(0,0,0,442)
 foot.BackgroundTransparency = 1; foot.Text = "CyRuZzz  •  drag panel to move"
 foot.TextColor3 = Color3.fromRGB(45,55,85); foot.Font = Enum.Font.Gotham
 foot.TextSize = 9; foot.ZIndex = 11; foot.Parent = Panel
@@ -361,7 +369,6 @@ end
 --  WALK SPEED
 -- ============================================================
 local function enableSpeed()
-    -- Pakai loop supaya kecepatan nggak kereset sama script game bawaan
     speedConn = RunService.RenderStepped:Connect(function()
         if not speedEnabled then return end
         local c = getChar()
@@ -376,7 +383,81 @@ local function disableSpeed()
     if speedConn then speedConn:Disconnect(); speedConn = nil end
     local c = getChar()
     local hum = c and c:FindFirstChildOfClass("Humanoid")
-    if hum then hum.WalkSpeed = 16 end -- Kembali ke kecepatan normal (16)
+    if hum then hum.WalkSpeed = 16 end
+end
+
+-- ============================================================
+--  ESP NAME
+-- ============================================================
+local function createEspGui(plr)
+    if plr == LP or espObjects[plr] then return end
+    
+    local espHolder = Instance.new("BillboardGui")
+    espHolder.Name = "_CyESP_" .. plr.Name
+    espHolder.AlwaysOnTop = true
+    espHolder.Size = UDim2.new(0, 100, 0, 40)
+    espHolder.StudsOffset = Vector3.new(0, 2.5, 0)
+    
+    -- Executor fallback
+    local success = pcall(function() espHolder.Parent = game:GetService("CoreGui") end)
+    if not success then espHolder.Parent = LP:WaitForChild("PlayerGui") end
+    
+    local nameLbl = Instance.new("TextLabel")
+    nameLbl.Size = UDim2.new(1, 0, 1, 0)
+    nameLbl.BackgroundTransparency = 1
+    nameLbl.Text = plr.Name
+    nameLbl.TextColor3 = Color3.fromRGB(255, 60, 110)
+    nameLbl.TextStrokeTransparency = 0.3
+    nameLbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+    nameLbl.Font = Enum.Font.GothamBold
+    nameLbl.TextSize = 11
+    nameLbl.Parent = espHolder
+
+    espObjects[plr] = espHolder
+end
+
+local function removeEspGui(plr)
+    if espObjects[plr] then
+        espObjects[plr]:Destroy()
+        espObjects[plr] = nil
+    end
+end
+
+local function enableEsp()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        createEspGui(plr)
+    end
+    espPlayerAddedConn = Players.PlayerAdded:Connect(createEspGui)
+    espPlayerRemoveConn = Players.PlayerRemoving:Connect(removeEspGui)
+    
+    espConn = RunService.RenderStepped:Connect(function()
+        if not espEnabled then return end
+        for plr, gui in pairs(espObjects) do
+            local char = plr.Character
+            if char and char:FindFirstChild("Head") then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum and hum.Health > 0 then
+                    gui.Adornee = char.Head
+                    gui.Enabled = true
+                else
+                    gui.Enabled = false
+                end
+            else
+                gui.Enabled = false
+            end
+        end
+    end)
+end
+
+local function disableEsp()
+    if espPlayerAddedConn then espPlayerAddedConn:Disconnect(); espPlayerAddedConn = nil end
+    if espPlayerRemoveConn then espPlayerRemoveConn:Disconnect(); espPlayerRemoveConn = nil end
+    if espConn then espConn:Disconnect(); espConn = nil end
+    
+    for plr, _ in pairs(espObjects) do
+        removeEspGui(plr)
+    end
+    table.clear(espObjects)
 end
 
 -- ============================================================
@@ -420,6 +501,11 @@ speedClick.MouseButton1Click:Connect(function()
     if speedEnabled then enableSpeed() else disableSpeed() end
 end)
 
+espClick.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled; setEspOn(espEnabled)
+    if espEnabled then enableEsp() else disableEsp() end
+end)
+
 tp1Btn.MouseButton1Click:Connect(function() setTp(1) end)
 tp2Btn.MouseButton1Click:Connect(function() setTp(2) end)
 
@@ -438,6 +524,9 @@ UserInputService.InputBegan:Connect(function(inp, gp)
     elseif k == Enum.KeyCode.Q then
         speedEnabled = not speedEnabled; setSpeedOn(speedEnabled)
         if speedEnabled then enableSpeed() else disableSpeed() end
+    elseif k == Enum.KeyCode.E then
+        espEnabled = not espEnabled; setEspOn(espEnabled)
+        if espEnabled then enableEsp() else disableEsp() end
     elseif k == Enum.KeyCode.H then doTp(1)
     elseif k == Enum.KeyCode.J then doTp(2)
     end
@@ -453,4 +542,4 @@ LP.CharacterAdded:Connect(function()
     if speedEnabled  then enableSpeed()  end
 end)
 
-print("[CyRuZzz] Ready! T=Fly | C=Noclip | Q=Speed | H=TP1 | J=TP2")
+print("[CyRuZzz] Ready! T=Fly | C=Noclip | Q=Speed | E=ESP | H=TP1 | J=TP2")
