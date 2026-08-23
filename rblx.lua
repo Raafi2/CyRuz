@@ -1,6 +1,6 @@
 -- ============================================================
---  CyRuZzz Universal & Game-Specific Hub
---  Slot-Based Fruit Detection + Boss TP + NPC ESP
+--  CyRuZzz Universal & Fruit BG Hub
+--  Full Legacy Features + Area Teleport & Fixed NPC ESP
 -- ============================================================
 
 local Players              = game:GetService("Players")
@@ -16,7 +16,7 @@ local LP                   = Players.LocalPlayer
 local Camera               = workspace.CurrentCamera
 local PlayerGui            = LP:WaitForChild("PlayerGui")
 
--- Global States
+-- Global States (100% Complete)
 local universalEspEnabled  = false
 local fbgEspEnabled        = false
 local npcEspEnabled        = false
@@ -27,12 +27,16 @@ local antiAfkEnabled       = true
 local flyEnabled           = false
 local noclipEnabled        = false
 local speedEnabled         = false
+local antiStunEnabled      = false
+local infDashEnabled       = false
+local infJumpEnabled       = false
+
 local flySpeed             = 60
 local walkSpeedVal         = 100
-
 local tp1Pos               = nil
 local tp2Pos               = nil
 local selectedPlayer       = nil
+local selectedArea         = nil
 
 local espObjects           = {}
 local npcEspObjects        = {}
@@ -74,8 +78,8 @@ MiniBtn.TextColor3 = Color3.fromRGB(255, 255, 255); MiniBtn.Font = Enum.Font.Got
 -- Main Window
 local MainFrame = Instance.new("Frame")
 MainFrame.Name                   = "MainFrame"
-MainFrame.Size                   = UDim2.new(0, 600, 0, 420)
-MainFrame.Position               = UDim2.new(0.5, -300, 0.5, -210)
+MainFrame.Size                   = UDim2.new(0, 620, 0, 440)
+MainFrame.Position               = UDim2.new(0.5, -310, 0.5, -220)
 MainFrame.BackgroundColor3       = Color3.fromRGB(15, 17, 26)
 MainFrame.BorderSizePixel        = 0; MainFrame.Active = true; MainFrame.Draggable = true; MainFrame.Parent = SG
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
@@ -103,7 +107,7 @@ Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 MinimizeBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MiniWidget.Visible = true end)
 MiniBtn.MouseButton1Click:Connect(function() MainFrame.Visible = true; MiniWidget.Visible = false end)
 
--- Sidebar Navigation
+-- Sidebar & Navigation
 local Sidebar = Instance.new("Frame")
 Sidebar.Size = UDim2.new(0, 140, 1, -38); Sidebar.Position = UDim2.new(0, 0, 0, 38); Sidebar.BackgroundColor3 = Color3.fromRGB(18, 21, 32); Sidebar.BorderSizePixel = 0; Sidebar.Parent = MainFrame
 local SideLayout = Instance.new("UIListLayout"); SideLayout.SortOrder = Enum.SortOrder.LayoutOrder; SideLayout.Padding = UDim.new(0, 4); SideLayout.Parent = Sidebar
@@ -112,7 +116,6 @@ local SidePadding = Instance.new("UIPadding"); SidePadding.PaddingTop = UDim.new
 local ContentFolder = Instance.new("Frame")
 ContentFolder.Size = UDim2.new(1, -140, 1, -38); ContentFolder.Position = UDim2.new(0, 140, 0, 38); ContentFolder.BackgroundTransparency = 1; ContentFolder.Parent = MainFrame
 
--- Tab Controller
 local tabs = {}
 local function createTab(name, icon)
     local TabPage = Instance.new("ScrollingFrame")
@@ -151,10 +154,10 @@ local function addToggle(parent, title, desc, defaultState, callback)
     Instance.new("UICorner", card).CornerRadius = UDim.new(0, 6)
 
     local tLbl = Instance.new("TextLabel")
-    tLbl.Size = UDim2.new(0.7, 0, 0, 18); tLbl.Position = UDim2.new(0, 10, 0, 4); tLbl.BackgroundTransparency = 1; tLbl.Text = title; tLbl.TextColor3 = Color3.fromRGB(240, 245, 255); tLbl.Font = Enum.Font.GothamSemibold; tLbl.TextSize = 11; tLbl.TextXAlignment = Enum.TextXAlignment.Left; tLbl.Parent = card
+    tLbl.Size = UDim2.new(0.65, 0, 0, 18); tLbl.Position = UDim2.new(0, 10, 0, 4); tLbl.BackgroundTransparency = 1; tLbl.Text = title; tLbl.TextColor3 = Color3.fromRGB(240, 245, 255); tLbl.Font = Enum.Font.GothamSemibold; tLbl.TextSize = 11; tLbl.TextXAlignment = Enum.TextXAlignment.Left; tLbl.Parent = card
 
     local dLbl = Instance.new("TextLabel")
-    dLbl.Size = UDim2.new(0.7, 0, 0, 14); dLbl.Position = UDim2.new(0, 10, 0, 22); dLbl.BackgroundTransparency = 1; dLbl.Text = desc; dLbl.TextColor3 = Color3.fromRGB(110, 125, 160); dLbl.Font = Enum.Font.Gotham; dLbl.TextSize = 9; dLbl.TextXAlignment = Enum.TextXAlignment.Left; dLbl.Parent = card
+    dLbl.Size = UDim2.new(0.65, 0, 0, 14); dLbl.Position = UDim2.new(0, 10, 0, 22); dLbl.BackgroundTransparency = 1; dLbl.Text = desc; dLbl.TextColor3 = Color3.fromRGB(110, 125, 160); dLbl.Font = Enum.Font.Gotham; dLbl.TextSize = 9; dLbl.TextXAlignment = Enum.TextXAlignment.Left; dLbl.Parent = card
 
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0, 48, 0, 22); btn.Position = UDim2.new(1, -58, 0.5, -11); btn.BackgroundColor3 = defaultState and Color3.fromRGB(45, 180, 90) or Color3.fromRGB(45, 50, 75); btn.BorderSizePixel = 0; btn.Text = defaultState and "ON" or "OFF"; btn.TextColor3 = Color3.fromRGB(255, 255, 255); btn.Font = Enum.Font.GothamBold; btn.TextSize = 9; btn.Parent = card
@@ -165,7 +168,7 @@ local function addToggle(parent, title, desc, defaultState, callback)
         state = not state; btn.Text = state and "ON" or "OFF"; btn.BackgroundColor3 = state and Color3.fromRGB(45, 180, 90) or Color3.fromRGB(45, 50, 75)
         callback(state)
     end)
-    return btn
+    return card, btn
 end
 
 local function addButton(parent, title, btnText, callback)
@@ -184,52 +187,95 @@ local function addButton(parent, title, btnText, callback)
     return card
 end
 
+local function addSliderRow(parent, title, val, minV, maxV, onUpdate)
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(1, -10, 0, 42); card.BackgroundColor3 = Color3.fromRGB(22, 26, 40); card.BorderSizePixel = 0; card.Parent = parent
+    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 6)
+
+    local tLbl = Instance.new("TextLabel")
+    tLbl.Size = UDim2.new(0.4, 0, 0, 18); tLbl.Position = UDim2.new(0, 10, 0, 4); tLbl.BackgroundTransparency = 1; tLbl.Text = title; tLbl.TextColor3 = Color3.fromRGB(240, 245, 255); tLbl.Font = Enum.Font.GothamSemibold; tLbl.TextSize = 11; tLbl.TextXAlignment = Enum.TextXAlignment.Left; tLbl.Parent = card
+
+    local vLbl = Instance.new("TextLabel")
+    vLbl.Size = UDim2.new(0.2, 0, 0, 18); vLbl.Position = UDim2.new(0.4, 0, 0, 4); vLbl.BackgroundTransparency = 1; vLbl.Text = tostring(val); vLbl.TextColor3 = Color3.fromRGB(0, 170, 255); vLbl.Font = Enum.Font.GothamBold; vLbl.TextSize = 11; vLbl.TextXAlignment = Enum.TextXAlignment.Center; vLbl.Parent = card
+
+    local barBg = Instance.new("Frame")
+    barBg.Size = UDim2.new(1, -20, 0, 4); barBg.Position = UDim2.new(0, 10, 1, -8); barBg.BackgroundColor3 = Color3.fromRGB(38, 45, 70); barBg.BorderSizePixel = 0; barBg.Parent = card
+    Instance.new("UICorner", barBg).CornerRadius = UDim.new(1, 0)
+
+    local barFill = Instance.new("Frame")
+    barFill.Size = UDim2.new((val-minV)/(maxV-minV), 0, 1, 0); barFill.BackgroundColor3 = Color3.fromRGB(0, 170, 255); barFill.BorderSizePixel = 0; barFill.Parent = barBg
+    Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
+
+    local function makeBtn(txt, posX, delta)
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.new(0, 26, 0, 20); b.Position = UDim2.new(1, posX, 0, 4); b.BackgroundColor3 = Color3.fromRGB(38, 45, 70); b.BorderSizePixel = 0; b.Text = txt; b.TextColor3 = Color3.fromRGB(255, 255, 255); b.Font = Enum.Font.GothamBold; b.TextSize = 12; b.Parent = card
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
+        b.MouseButton1Click:Connect(function()
+            val = math.clamp(val + delta, minV, maxV); vLbl.Text = tostring(val)
+            barFill.Size = UDim2.new((val-minV)/(maxV-minV), 0, 1, 0)
+            onUpdate(val)
+        end)
+    end
+    makeBtn("-", -58, -5)
+    makeBtn("+", -28, 5)
+end
+
 -- ============================================================
---  1. UNIVERSAL TAB
+--  1. UNIVERSAL TAB (FULL LEGACY FEATURES)
 -- ============================================================
 addSectionHeader(MainTab, "Universal Visuals")
-addToggle(MainTab, "Universal ESP", "Menampilkan Nama & Body Highlight Player", false, function(v) universalEspEnabled = v end)
+
+local EspCard = addToggle(MainTab, "Universal ESP", "Nama & Body Highlight Player", false, function(v) universalEspEnabled = v end)
+local ReloadBtn = Instance.new("TextButton")
+ReloadBtn.Size = UDim2.new(0, 55, 0, 22); ReloadBtn.Position = UDim2.new(1, -120, 0.5, -11)
+ReloadBtn.BackgroundColor3 = Color3.fromRGB(38, 48, 75); ReloadBtn.BorderSizePixel = 0; ReloadBtn.Text = "RELOAD"; ReloadBtn.TextColor3 = Color3.fromRGB(200, 215, 255); ReloadBtn.Font = Enum.Font.GothamBold; ReloadBtn.TextSize = 8; ReloadBtn.Parent = EspCard
+Instance.new("UICorner", ReloadBtn).CornerRadius = UDim.new(0, 5)
+
+addSectionHeader(MainTab, "Player Mods")
+addToggle(MainTab, "Anti-Stun", "Mencegah stun / freeze karakter", false, function(v) antiStunEnabled = v end)
+addToggle(MainTab, "Infinite Dash", "Menghapus delay/cooldown dash", false, function(v) infDashEnabled = v end)
+addToggle(MainTab, "Infinite Jump", "Lompat tanpa batas di udara", false, function(v) infJumpEnabled = v end)
 
 addSectionHeader(MainTab, "Universal Movement")
-addToggle(MainTab, "Fly Mode [T]", "Terbang bebas di udara", false, function(v)
-    flyEnabled = v
-    if flyEnabled then
-        local c = LP.Character; if not c then return end
-        local hrp, hum = c:FindFirstChild("HumanoidRootPart"), c:FindFirstChildOfClass("Humanoid")
-        if hrp and hum then
-            hum.PlatformStand = true
-            local bv = Instance.new("BodyVelocity", hrp); bv.Velocity = Vector3.zero; bv.MaxForce = Vector3.new(1e5,1e5,1e5); bv.Name = "_CyBV"
-            local bg = Instance.new("BodyGyro", hrp); bg.MaxTorque = Vector3.new(1e5,1e5,1e5); bg.D = 100; bg.P = 1e4; bg.CFrame = hrp.CFrame; bg.Name = "_CyBG"
+local function enableFly()
+    local c = LP.Character; if not c then return end
+    local hrp, hum = c:FindFirstChild("HumanoidRootPart"), c:FindFirstChildOfClass("Humanoid")
+    if hrp and hum then
+        hum.PlatformStand = true
+        local bv = Instance.new("BodyVelocity", hrp); bv.Velocity = Vector3.zero; bv.MaxForce = Vector3.new(1e5,1e5,1e5); bv.Name = "_CyBV"
+        local bg = Instance.new("BodyGyro", hrp); bg.MaxTorque = Vector3.new(1e5,1e5,1e5); bg.D = 100; bg.P = 1e4; bg.CFrame = hrp.CFrame; bg.Name = "_CyBG"
 
-            flyConn = RunService.RenderStepped:Connect(function()
-                if not flyEnabled then return end
-                local h2 = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                if not h2 then return end
-                local bv2, bg2 = h2:FindFirstChild("_CyBV"), h2:FindFirstChild("_CyBG")
-                if not bv2 or not bg2 then return end
-                local cf = Camera.CFrame; local dir = Vector3.zero
-                if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cf.LookVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cf.LookVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cf.RightVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cf.RightVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
-                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
-                bv2.Velocity = dir.Magnitude > 0 and dir.Unit * flySpeed or Vector3.zero
-                bg2.CFrame = CFrame.lookAt(h2.Position, h2.Position + cf.LookVector)
-            end)
-        end
-    else
-        if flyConn then flyConn:Disconnect(); flyConn = nil end
-        local c = LP.Character
-        if c then
-            local hum, hrp = c:FindFirstChildOfClass("Humanoid"), c:FindFirstChild("HumanoidRootPart")
-            if hum then hum.PlatformStand = false end
-            if hrp then if hrp:FindFirstChild("_CyBV") then hrp._CyBV:Destroy() end if hrp:FindFirstChild("_CyBG") then hrp._CyBG:Destroy() end end
-        end
+        flyConn = RunService.RenderStepped:Connect(function()
+            if not flyEnabled then return end
+            local h2 = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if not h2 then return end
+            local bv2, bg2 = h2:FindFirstChild("_CyBV"), h2:FindFirstChild("_CyBG")
+            if not bv2 or not bg2 then return end
+            local cf = Camera.CFrame; local dir = Vector3.zero
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cf.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cf.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cf.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cf.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
+            bv2.Velocity = dir.Magnitude > 0 and dir.Unit * flySpeed or Vector3.zero
+            bg2.CFrame = CFrame.lookAt(h2.Position, h2.Position + cf.LookVector)
+        end)
     end
-end)
+end
 
-addToggle(MainTab, "Noclip Mode [C]", "Menembus semua tembok/objek", false, function(v)
+local function disableFly()
+    if flyConn then flyConn:Disconnect(); flyConn = nil end
+    local c = LP.Character
+    if c then
+        local hum, hrp = c:FindFirstChildOfClass("Humanoid"), c:FindFirstChild("HumanoidRootPart")
+        if hum then hum.PlatformStand = false end
+        if hrp then if hrp:FindFirstChild("_CyBV") then hrp._CyBV:Destroy() end if hrp:FindFirstChild("_CyBG") then hrp._CyBG:Destroy() end end
+    end
+end
+
+addToggle(MainTab, "Fly Mode [T]", "Terbang bebas di udara", false, function(v) flyEnabled = v; if flyEnabled then enableFly() else disableFly() end end)
+addToggle(MainTab, "Noclip Mode [C]", "Menembus semua tembok", false, function(v)
     noclipEnabled = v
     if noclipEnabled then
         noclipConn = RunService.Stepped:Connect(function()
@@ -239,84 +285,190 @@ addToggle(MainTab, "Noclip Mode [C]", "Menembus semua tembok/objek", false, func
         if noclipConn then noclipConn:Disconnect(); noclipConn = nil end
     end
 end)
+addToggle(MainTab, "Walk Speed [Q]", "Sesuai speed slider", false, function(v)
+    speedEnabled = v
+    if speedEnabled then
+        speedConn = RunService.RenderStepped:Connect(function()
+            local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = walkSpeedVal end
+        end)
+    else
+        if speedConn then speedConn:Disconnect(); speedConn = nil end
+        local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = 16 end
+    end
+end)
+
+addSliderRow(MainTab, "Fly Speed", flySpeed, 10, 300, function(v) flySpeed = v end)
+addSliderRow(MainTab, "Walk Speed", walkSpeedVal, 16, 300, function(v) walkSpeedVal = v end)
+
+addSectionHeader(MainTab, "Teleport Position")
+
+local function addTpCard(parent, title, slot)
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(1, -10, 0, 42); card.BackgroundColor3 = Color3.fromRGB(22, 26, 40); card.BorderSizePixel = 0; card.Parent = parent
+    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 6)
+
+    local tLbl = Instance.new("TextLabel")
+    tLbl.Size = UDim2.new(0.4, 0, 0, 18); tLbl.Position = UDim2.new(0, 10, 0, 4); tLbl.BackgroundTransparency = 1; tLbl.Text = title; tLbl.TextColor3 = Color3.fromRGB(240, 245, 255); tLbl.Font = Enum.Font.GothamSemibold; tLbl.TextSize = 11; tLbl.TextXAlignment = Enum.TextXAlignment.Left; tLbl.Parent = card
+
+    local cLbl = Instance.new("TextLabel")
+    cLbl.Size = UDim2.new(0.5, 0, 0, 14); cLbl.Position = UDim2.new(0, 10, 0, 22); cLbl.BackgroundTransparency = 1; cLbl.Text = "Not Set"; cLbl.TextColor3 = Color3.fromRGB(110, 125, 160); cLbl.Font = Enum.Font.Gotham; cLbl.TextSize = 9; cLbl.TextXAlignment = Enum.TextXAlignment.Left; cLbl.Parent = card
+
+    local setBtn = Instance.new("TextButton")
+    setBtn.Size = UDim2.new(0, 42, 0, 24); setBtn.Position = UDim2.new(1, -94, 0.5, -12); setBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 255); setBtn.BorderSizePixel = 0; setBtn.Text = "SET"; setBtn.TextColor3 = Color3.fromRGB(255, 255, 255); setBtn.Font = Enum.Font.GothamBold; setBtn.TextSize = 9; setBtn.Parent = card
+    Instance.new("UICorner", setBtn).CornerRadius = UDim.new(0, 5)
+
+    local tpBtn = Instance.new("TextButton")
+    tpBtn.Size = UDim2.new(0, 42, 0, 24); tpBtn.Position = UDim2.new(1, -48, 0.5, -12); tpBtn.BackgroundColor3 = Color3.fromRGB(45, 180, 90); tpBtn.BorderSizePixel = 0; tpBtn.Text = "TP"; tpBtn.TextColor3 = Color3.fromRGB(255, 255, 255); tpBtn.Font = Enum.Font.GothamBold; tpBtn.TextSize = 9; tpBtn.Parent = card
+    Instance.new("UICorner", tpBtn).CornerRadius = UDim.new(0, 5)
+
+    setBtn.MouseButton1Click:Connect(function()
+        local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local cf = hrp.CFrame
+            if slot == 1 then tp1Pos = cf else tp2Pos = cf end
+            cLbl.Text = string.format("%.0f, %.0f, %.0f", cf.X, cf.Y, cf.Z); cLbl.TextColor3 = Color3.fromRGB(0, 255, 150)
+        end
+    end)
+
+    tpBtn.MouseButton1Click:Connect(function()
+        local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        local pos = slot == 1 and tp1Pos or tp2Pos
+        if hrp and pos then hrp.CFrame = pos end
+    end)
+end
+
+addTpCard(MainTab, "Teleport Slot 1 [H]", 1)
+addTpCard(MainTab, "Teleport Slot 2 [J]", 2)
+
+-- Player Teleport Dropdown
+local PlrTpCard = Instance.new("Frame")
+PlrTpCard.Size = UDim2.new(1, -10, 0, 42); PlrTpCard.BackgroundColor3 = Color3.fromRGB(22, 26, 40); PlrTpCard.BorderSizePixel = 0; PlrTpCard.Parent = MainTab
+Instance.new("UICorner", PlrTpCard).CornerRadius = UDim.new(0, 6)
+
+local SelectPlrBtn = Instance.new("TextButton")
+SelectPlrBtn.Size = UDim2.new(0.6, 0, 0, 26); SelectPlrBtn.Position = UDim2.new(0, 10, 0.5, -13); SelectPlrBtn.BackgroundColor3 = Color3.fromRGB(15, 18, 28); SelectPlrBtn.BorderSizePixel = 0; SelectPlrBtn.Text = "Pilih Player..."; SelectPlrBtn.TextColor3 = Color3.fromRGB(200, 210, 255); SelectPlrBtn.Font = Enum.Font.GothamSemibold; SelectPlrBtn.TextSize = 10; SelectPlrBtn.Parent = PlrTpCard
+Instance.new("UICorner", SelectPlrBtn).CornerRadius = UDim.new(0, 5)
+
+local GotoPlrBtn = Instance.new("TextButton")
+GotoPlrBtn.Size = UDim2.new(0, 75, 0, 26); GotoPlrBtn.Position = UDim2.new(1, -85, 0.5, -13); GotoPlrBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255); GotoPlrBtn.BorderSizePixel = 0; GotoPlrBtn.Text = "GOTO"; GotoPlrBtn.TextColor3 = Color3.fromRGB(255, 255, 255); GotoPlrBtn.Font = Enum.Font.GothamBold; GotoPlrBtn.TextSize = 10; GotoPlrBtn.Parent = PlrTpCard
+Instance.new("UICorner", GotoPlrBtn).CornerRadius = UDim.new(0, 5)
+
+local DropFrame = Instance.new("ScrollingFrame")
+DropFrame.Size = UDim2.new(1, -10, 0, 100); DropFrame.BackgroundColor3 = Color3.fromRGB(20, 24, 38); DropFrame.BorderSizePixel = 0; DropFrame.Visible = false; DropFrame.ZIndex = 20; DropFrame.ScrollBarThickness = 3; DropFrame.Parent = MainTab
+Instance.new("UICorner", DropFrame).CornerRadius = UDim.new(0, 6)
+local DropLayout = Instance.new("UIListLayout"); DropLayout.Parent = DropFrame
+
+local function updatePlayerList()
+    for _, child in ipairs(DropFrame:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
+    local count = 0
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LP then
+            count = count + 1
+            local pBtn = Instance.new("TextButton")
+            pBtn.Size = UDim2.new(1, 0, 0, 24); pBtn.BackgroundColor3 = Color3.fromRGB(28, 32, 50); pBtn.BorderSizePixel = 0; pBtn.Text = plr.Name; pBtn.TextColor3 = Color3.fromRGB(200, 210, 255); pBtn.Font = Enum.Font.Gotham; pBtn.TextSize = 10; pBtn.ZIndex = 21; pBtn.Parent = DropFrame
+            pBtn.MouseButton1Click:Connect(function() selectedPlayer = plr; SelectPlrBtn.Text = plr.Name; DropFrame.Visible = false end)
+        end
+    end
+    DropFrame.CanvasSize = UDim2.new(0, 0, 0, count * 24)
+end
+
+SelectPlrBtn.MouseButton1Click:Connect(function() DropFrame.Visible = not DropFrame.Visible; if DropFrame.Visible then updatePlayerList() end end)
+GotoPlrBtn.MouseButton1Click:Connect(function()
+    if selectedPlayer and selectedPlayer.Character and selectedPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if myHrp then myHrp.CFrame = selectedPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 2, 3) end
+    end
+end)
 
 -- ============================================================
---  LOGIKA PENENTUAN BUAH VIA SLOT & SLOTS (DEPOSIT FIX)
+--  LOGIKA PENENTUAN BUAH VIA MAIN_DATA.Slot & Slots
 -- ============================================================
 local function getExactFruitAndLevel(plr)
-    local fruitName = "Unknown"
-    local fruitLevel = "0"
-
+    local fruitName, fruitLevel = "Unknown", "0"
     local mainData = plr:FindFirstChild("MAIN_DATA")
     if mainData then
-        -- 1. Baca Nomor Slot Aktif (MAIN_DATA.Slot)
         local slotObj = mainData:FindFirstChild("Slot")
         local activeSlotNum = slotObj and tostring(slotObj.Value) or "1"
-
-        -- 2. Mencocokkan ke Folder Slots[activeSlotNum]
         local slotsFolder = mainData:FindFirstChild("Slots")
         if slotsFolder then
             local activeSlotFolder = slotsFolder:FindFirstChild(activeSlotNum)
             if activeSlotFolder then
-                -- Ambil Nama Buah dari StringValue di dalamnya
                 for _, child in ipairs(activeSlotFolder:GetChildren()) do
-                    if child:IsA("StringValue") or child:IsA("ValueBase") then
-                        fruitName = tostring(child.Value)
-                        break
-                    end
+                    if child:IsA("StringValue") or child:IsA("ValueBase") then fruitName = tostring(child.Value); break end
                 end
                 if fruitName == "Unknown" then fruitName = activeSlotFolder.Name end
             end
         end
-
-        -- 3. Mengambil Nilai Level dari MAIN_DATA.Fruits[fruitName].Level
         local fruitsFolder = mainData:FindFirstChild("Fruits")
         if fruitsFolder and fruitName ~= "Unknown" then
-            local targetFruitObj = fruitsFolder:FindFirstChild(fruitName)
-            if targetFruitObj then
-                local lvlObj = targetFruitObj:FindFirstChild("Level")
+            local targetObj = fruitsFolder:FindFirstChild(fruitName)
+            if targetObj then
+                local lvlObj = targetObj:FindFirstChild("Level")
                 if lvlObj then fruitLevel = tostring(math.floor(lvlObj.Value)) end
             end
         end
     end
-
     return fruitName, fruitLevel
 end
 
 -- ============================================================
---  2. FRUIT BATTLEGROUNDS TAB (COMBAT, NPC ESP, BOSS TP)
+--  2. FRUIT BATTLEGROUNDS TAB (AREA TP & FIXED NPC ESP)
 -- ============================================================
 addSectionHeader(FbgTab, "Combat & Target")
-addToggle(FbgTab, "Auto Aim (Gyro Lock)", "Otomatis mengunci arah ke musuh terdekat", false, function(v) autoAimEnabled = v end)
+addToggle(FbgTab, "Auto Aim (Gyro Lock)", "Otomatis mengunci ke musuh terdekat", false, function(v) autoAimEnabled = v end)
 
 addSectionHeader(FbgTab, "FBG Specific ESP")
-addToggle(FbgTab, "Fruit & Level ESP", "Menampilkan Nama, Body, Darah, Jarak, Buah & Level", false, function(v) fbgEspEnabled = v end)
-addToggle(FbgTab, "NPC & Boss ESP", "Tampilkan teks penanda Boss/NPC di sekitar map", false, function(v) npcEspEnabled = v end)
+addToggle(FbgTab, "Fruit & Level ESP", "Darah, Jarak, Buah, Level & Body", false, function(v) fbgEspEnabled = v end)
+addToggle(FbgTab, "NPC ESP (workspace.NPCs)", "Tampilkan teks penanda NPC map", false, function(v) npcEspEnabled = v end)
 
-addSectionHeader(FbgTab, "Boss Teleport Utility")
-addButton(FbgTab, "Teleport to Active Boss", "TP BOSS", function()
-    local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-    if not myHrp then return end
+addSectionHeader(FbgTab, "Area Teleport (workspace.Areas)")
 
-    local bossFound = false
-    -- Pindai workspace untuk Boss (Kaido, Katakuri, dll)
-    for _, obj in ipairs(workspace:GetChildren()) do
-        if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and not Players:GetPlayerFromCharacter(obj) then
-            local name = string.lower(obj.Name)
-            if string.find(name, "boss") or string.find(name, "kaido") or string.find(name, "katakuri") or string.find(name, "marco") then
-                local bHrp = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Head")
-                if bHrp then
-                    myHrp.CFrame = bHrp.CFrame * CFrame.new(0, 10, 0)
-                    bossFound = true
-                    print("[CyRuZzz] Teleported to Boss: " .. obj.Name)
-                    break
-                end
-            end
+local AreaTpCard = Instance.new("Frame")
+AreaTpCard.Size = UDim2.new(1, -10, 0, 42); AreaTpCard.BackgroundColor3 = Color3.fromRGB(22, 26, 40); AreaTpCard.BorderSizePixel = 0; AreaTpCard.Parent = FbgTab
+Instance.new("UICorner", AreaTpCard).CornerRadius = UDim.new(0, 6)
+
+local SelectAreaBtn = Instance.new("TextButton")
+SelectAreaBtn.Size = UDim2.new(0.6, 0, 0, 26); SelectAreaBtn.Position = UDim2.new(0, 10, 0.5, -13); SelectAreaBtn.BackgroundColor3 = Color3.fromRGB(15, 18, 28); SelectAreaBtn.BorderSizePixel = 0; SelectAreaBtn.Text = "Pilih Area Map..."; SelectAreaBtn.TextColor3 = Color3.fromRGB(200, 210, 255); SelectAreaBtn.Font = Enum.Font.GothamSemibold; SelectAreaBtn.TextSize = 10; SelectAreaBtn.Parent = AreaTpCard
+Instance.new("UICorner", SelectAreaBtn).CornerRadius = UDim.new(0, 5)
+
+local GotoAreaBtn = Instance.new("TextButton")
+GotoAreaBtn.Size = UDim2.new(0, 75, 0, 26); GotoAreaBtn.Position = UDim2.new(1, -85, 0.5, -13); GotoAreaBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255); GotoAreaBtn.BorderSizePixel = 0; GotoAreaBtn.Text = "TELEPORT"; GotoAreaBtn.TextColor3 = Color3.fromRGB(255, 255, 255); GotoAreaBtn.Font = Enum.Font.GothamBold; GotoAreaBtn.TextSize = 9; GotoAreaBtn.Parent = AreaTpCard
+Instance.new("UICorner", GotoAreaBtn).CornerRadius = UDim.new(0, 5)
+
+local AreaDropFrame = Instance.new("ScrollingFrame")
+AreaDropFrame.Size = UDim2.new(1, -10, 0, 100); AreaDropFrame.BackgroundColor3 = Color3.fromRGB(20, 24, 38); AreaDropFrame.BorderSizePixel = 0; AreaDropFrame.Visible = false; AreaDropFrame.ZIndex = 20; AreaDropFrame.ScrollBarThickness = 3; AreaDropFrame.Parent = FbgTab
+Instance.new("UICorner", AreaDropFrame).CornerRadius = UDim.new(0, 6)
+local AreaDropLayout = Instance.new("UIListLayout"); AreaDropLayout.Parent = AreaDropFrame
+
+local function updateAreaList()
+    for _, child in ipairs(AreaDropFrame:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
+    local count = 0
+    local areasFolder = workspace:FindFirstChild("Areas")
+    if areasFolder then
+        for _, area in ipairs(areasFolder:GetChildren()) do
+            count = count + 1
+            local aBtn = Instance.new("TextButton")
+            aBtn.Size = UDim2.new(1, 0, 0, 24); aBtn.BackgroundColor3 = Color3.fromRGB(28, 32, 50); aBtn.BorderSizePixel = 0; aBtn.Text = area.Name; aBtn.TextColor3 = Color3.fromRGB(200, 210, 255); aBtn.Font = Enum.Font.Gotham; aBtn.TextSize = 10; aBtn.ZIndex = 21; aBtn.Parent = AreaDropFrame
+            aBtn.MouseButton1Click:Connect(function()
+                selectedArea = area
+                SelectAreaBtn.Text = area.Name
+                AreaDropFrame.Visible = false
+            end)
         end
     end
+    AreaDropFrame.CanvasSize = UDim2.new(0, 0, 0, count * 24)
+end
 
-    if not bossFound then
-        print("[CyRuZzz] Tidak ada Boss yang sedang spawn saat ini.")
+SelectAreaBtn.MouseButton1Click:Connect(function() AreaDropFrame.Visible = not AreaDropFrame.Visible; if AreaDropFrame.Visible then updateAreaList() end end)
+GotoAreaBtn.MouseButton1Click:Connect(function()
+    if selectedArea then
+        local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if myHrp then
+            if selectedArea:IsA("BasePart") then myHrp.CFrame = selectedArea.CFrame * CFrame.new(0, 5, 0)
+            elseif selectedArea:IsA("Model") then myHrp.CFrame = selectedArea:GetPivot() * CFrame.new(0, 5, 0) end
+        end
     end
 end)
 
@@ -324,7 +476,7 @@ addSectionHeader(FbgTab, "Auto Leveling Config")
 addToggle(FbgTab, "Auto Leveling Engine", "Rotasi skill otomatis di luar safezone", false, function(v) autoLevelingEnabled = v end)
 
 local SkillCardContainer = Instance.new("Frame")
-SkillCardContainer.Size = UDim2.new(1, -10, 0, 160); SkillCardContainer.BackgroundColor3 = Color3.fromRGB(20, 24, 38); SkillCardContainer.BorderSizePixel = 0; SkillCardContainer.Parent = FbgTab
+SkillCardContainer.Size = UDim2.new(1, -10, 0, 150); SkillCardContainer.BackgroundColor3 = Color3.fromRGB(20, 24, 38); SkillCardContainer.BorderSizePixel = 0; SkillCardContainer.Parent = FbgTab
 Instance.new("UICorner", SkillCardContainer).CornerRadius = UDim.new(0, 6)
 
 local SkillScroll = Instance.new("ScrollingFrame")
@@ -384,13 +536,11 @@ table.insert(connections, LP.Backpack.ChildRemoved:Connect(updateFbgSkills))
 -- ============================================================
 --  3. SERVER TAB
 -- ============================================================
-addSectionHeader(ServerTab, "Anti AFK & Reconnect")
-addToggle(ServerTab, "Anti-AFK Protection", "Mencegah mencederai koneksi saat AFK lama", true, function(v) antiAfkEnabled = v end)
+addSectionHeader(ServerTab, "Anti AFK Protection")
+addToggle(ServerTab, "Anti-AFK Protection", "Mencegah kick AFK", true, function(v) antiAfkEnabled = v end)
 
 table.insert(connections, LP.Idled:Connect(function()
-    if antiAfkEnabled then
-        VirtualUser:Button2Down(Vector2.new(0, 0), Camera.CFrame); task.wait(1); VirtualUser:Button2Up(Vector2.new(0, 0), Camera.CFrame)
-    end
+    if antiAfkEnabled then VirtualUser:Button2Down(Vector2.new(0, 0), Camera.CFrame); task.wait(1); VirtualUser:Button2Up(Vector2.new(0, 0), Camera.CFrame) end
 end))
 
 addSectionHeader(ServerTab, "Server Management")
@@ -422,7 +572,7 @@ addButton(ServerTab, "Server Hop (Random)", "HOP", function()
 end)
 
 -- ============================================================
---  RENDER LOOP (PLAYER ESP, NPC ESP, AUTO AIM)
+--  EXECUTION LOOPS & ESP ENGINE
 -- ============================================================
 local function getClosestEnemy()
     local closestPlr = nil; local shortestDist = math.huge
@@ -441,10 +591,25 @@ local function getClosestEnemy()
     return closestPlr
 end
 
+-- Main RenderStepped Loop
 table.insert(connections, RunService.RenderStepped:Connect(function()
-    local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    local myChar = LP.Character
+    local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
 
-    -- Auto Aim
+    -- 1. Anti Stun & Inf Dash Loop
+    if antiStunEnabled and myChar then
+        local stunObj = myChar:FindFirstChild("Stun") or myChar:FindFirstChild("Stunned") or myChar:FindFirstChild("Freeze")
+        if stunObj then stunObj:Destroy() end
+        local hum = myChar:FindFirstChildOfClass("Humanoid")
+        if hum and hum.WalkSpeed == 0 then hum.WalkSpeed = walkSpeedVal end
+    end
+
+    if infDashEnabled and myChar then
+        local dashCd = myChar:FindFirstChild("DashCooldown") or myChar:FindFirstChild("GeppoCooldown") or myChar:FindFirstChild("Dodging")
+        if dashCd then dashCd:Destroy() end
+    end
+
+    -- 2. Auto Aim
     if autoAimEnabled and myHrp then
         local targetPlr = getClosestEnemy()
         if targetPlr and targetPlr.Character and targetPlr.Character:FindFirstChild("HumanoidRootPart") then
@@ -456,7 +621,7 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Player ESP Updates
+    -- 3. Player ESP Updates
     for plr, data in pairs(espObjects) do
         local char = plr.Character; local isAnyEspOn = universalEspEnabled or fbgEspEnabled
         if isAnyEspOn and char and char:FindFirstChild("Head") then
@@ -466,12 +631,9 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
 
                 if fbgEspEnabled then
                     data.FruitLbl.Visible = true; data.LevelLbl.Visible = true; data.DistLbl.Visible = true; data.HealthBg.Visible = true
-
-                    -- Menggunakan fungsi deteksi slot presisi
                     local activeFruit, fruitLevel = getExactFruitAndLevel(plr)
                     data.FruitLbl.Text = "Fruit: " .. activeFruit
                     data.LevelLbl.Text = "Level: " .. fruitLevel
-
                     if myHrp and root then data.DistLbl.Text = math.floor((myHrp.Position - root.Position).Magnitude) .. " studs" end
                     local hp = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
                     data.HealthFill.Size = UDim2.new(hp, -2, 1, -2)
@@ -486,23 +648,37 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- NPC & Boss ESP Updates
+    -- 4. FIXED NPC ESP (workspace.NPCs)
     if npcEspEnabled then
-        for _, model in ipairs(workspace:GetChildren()) do
-            if model:IsA("Model") and model:FindFirstChildOfClass("Humanoid") and not Players:GetPlayerFromCharacter(model) then
-                if not npcEspObjects[model] and model:FindFirstChild("Head") then
-                    local bg = Instance.new("BillboardGui")
-                    bg.Name = "_CyNpcESP"; bg.AlwaysOnTop = true; bg.Size = UDim2.new(0, 140, 0, 30); bg.StudsOffset = Vector3.new(0, 3, 0)
-                    local lbl = Instance.new("TextLabel", bg)
-                    lbl.Size = UDim2.new(1,0,1,0); lbl.BackgroundTransparency = 1; lbl.TextColor3 = Color3.fromRGB(255, 80, 80); lbl.TextStrokeTransparency = 0.2; lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 11; lbl.Text = "[NPC/Boss] " .. model.Name
-                    bg.Adornee = model.Head; bg.Parent = PlayerGui
-                    npcEspObjects[model] = bg
+        local npcsFolder = workspace:FindFirstChild("NPCs")
+        if npcsFolder then
+            for _, model in ipairs(npcsFolder:GetChildren()) do
+                if model:IsA("Model") and model:FindFirstChild("Head") then
+                    if not npcEspObjects[model] then
+                        local bg = Instance.new("BillboardGui")
+                        bg.Name = "_CyNpcESP"; bg.AlwaysOnTop = true; bg.Size = UDim2.new(0, 140, 0, 30); bg.StudsOffset = Vector3.new(0, 3, 0)
+                        local lbl = Instance.new("TextLabel", bg)
+                        lbl.Size = UDim2.new(1,0,1,0); lbl.BackgroundTransparency = 1; lbl.TextColor3 = Color3.fromRGB(255, 100, 100); lbl.TextStrokeTransparency = 0.2; lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 11; lbl.Text = "[NPC] " .. model.Name
+                        bg.Adornee = model.Head; bg.Parent = PlayerGui
+                        npcEspObjects[model] = bg
+                    end
                 end
             end
         end
     else
         for model, bg in pairs(npcEspObjects) do bg:Destroy() end
         table.clear(npcEspObjects)
+    end
+end))
+
+-- Infinite Jump Request Event
+table.insert(connections, UserInputService.JumpRequest:Connect(function()
+    if infJumpEnabled then
+        local char = LP.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum and hum:GetState() ~= Enum.HumanoidStateType.Dead then
+            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
     end
 end))
 
@@ -538,9 +714,29 @@ local function createEsp(plr)
     espObjects[plr] = { Billboard = holder, Highlight = highlight, NameLbl = nameLbl, FruitLbl = fruitLbl, LevelLbl = levelLbl, DistLbl = distLbl, HealthBg = healthBg, HealthFill = healthFill }
 end
 
+local function reloadEsp()
+    for plr, _ in pairs(espObjects) do removeEsp(plr) end
+    table.clear(espObjects)
+    for _, p in ipairs(Players:GetPlayers()) do createEsp(p) end
+end
+
+ReloadBtn.MouseButton1Click:Connect(reloadEsp)
+
 table.insert(connections, Players.PlayerAdded:Connect(createEsp))
 table.insert(connections, Players.PlayerRemoving:Connect(removeEsp))
 for _, p in ipairs(Players:GetPlayers()) do createEsp(p) end
+
+-- Hotkeys Movement Handler
+table.insert(connections, UserInputService.InputBegan:Connect(function(inp, gp)
+    if gp then return end
+    local k = inp.KeyCode
+    if k == Enum.KeyCode.T then flyEnabled = not flyEnabled; if flyEnabled then enableFly() else disableFly() end
+    elseif k == Enum.KeyCode.C then noclipEnabled = not noclipEnabled
+    elseif k == Enum.KeyCode.Q then speedEnabled = not speedEnabled
+    elseif k == Enum.KeyCode.H then local h = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart"); if h and tp1Pos then h.CFrame = tp1Pos end
+    elseif k == Enum.KeyCode.J then local h = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart"); if h and tp2Pos then h.CFrame = tp2Pos end
+    end
+end))
 
 -- FBG Auto Leveling Loop
 local function isSkillReady(skillName)
@@ -582,9 +778,10 @@ task.spawn(function()
     end
 end)
 
--- Total Cleanup
+-- Total Cleanup on Close
 CloseBtn.MouseButton1Click:Connect(function()
     autoLevelingEnabled = false; autoAimEnabled = false; universalEspEnabled = false; fbgEspEnabled = false; npcEspEnabled = false; antiAfkEnabled = false
+    antiStunEnabled = false; infDashEnabled = false; infJumpEnabled = false
     if flyConn then flyConn:Disconnect() end
     if noclipConn then noclipConn:Disconnect() end
     if speedConn then speedConn:Disconnect() end
@@ -606,4 +803,4 @@ MainLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() ta
 FbgLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() tabs["Fruit BG"].Page.CanvasSize = UDim2.new(0, 0, 0, FbgLayout.AbsoluteContentSize.Y + 20) end)
 ServerLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() tabs["Server"].Page.CanvasSize = UDim2.new(0, 0, 0, ServerLayout.AbsoluteContentSize.Y + 20) end)
 
-print("[CyRuZzz Universal Hub] Updated Slot Fruit & Boss TP Ready!")
+print("[CyRuZzz Universal Hub] Ready with Full Legacy Features!")
