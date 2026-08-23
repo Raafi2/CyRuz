@@ -1,6 +1,6 @@
 -- ============================================================
---  CyRuZzz Universal & Fruit BG Hub (Clean Edition)
---  Feature Set: Movement, Mods, Teleport & FBG Combat
+--  CyRuZzz Universal & Fruit BG Hub (Full Final Clean Edition)
+--  Feature Set: Movement, Mods, Teleport & FBG Precise ESP
 -- ============================================================
 
 local Players              = game:GetService("Players")
@@ -395,32 +395,44 @@ GotoPlrBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- LOGIKA DETEKSI BUAH VIA MAIN_DATA
+-- LOGIKA DETEKSI BUAH VIA SLOT, SLOTS, & FRUITS (PRESISI)
 local function getExactFruitAndLevel(plr)
-    local fruitName, fruitLevel = "Unknown", "0"
+    local fruitName, fruitLevel = "None", "0"
     local mainData = plr:FindFirstChild("MAIN_DATA")
+    
     if mainData then
-        local slotObj = mainData:FindFirstChild("Slot")
-        local activeSlotNum = slotObj and tostring(slotObj.Value) or "1"
+        local activeSlotObj = mainData:FindFirstChild("Slot")
+        local activeSlotNum = activeSlotObj and tostring(activeSlotObj.Value) or "1"
+        
         local slotsFolder = mainData:FindFirstChild("Slots")
         if slotsFolder then
-            local activeSlotFolder = slotsFolder:FindFirstChild(activeSlotNum)
-            if activeSlotFolder then
-                for _, child in ipairs(activeSlotFolder:GetChildren()) do
-                    if child:IsA("StringValue") or child:IsA("ValueBase") then fruitName = tostring(child.Value); break end
+            local slotValObj = slotsFolder:FindFirstChild(activeSlotNum)
+            if slotValObj then
+                if slotValObj:IsA("ValueBase") then
+                    fruitName = tostring(slotValObj.Value)
+                else
+                    for _, child in ipairs(slotValObj:GetChildren()) do
+                        if child:IsA("StringValue") or child:IsA("ValueBase") then
+                            fruitName = tostring(child.Value)
+                            break
+                        end
+                    end
                 end
-                if fruitName == "Unknown" then fruitName = activeSlotFolder.Name end
             end
         end
+        
         local fruitsFolder = mainData:FindFirstChild("Fruits")
-        if fruitsFolder and fruitName ~= "Unknown" then
-            local targetObj = fruitsFolder:FindFirstChild(fruitName)
-            if targetObj then
-                local lvlObj = targetObj:FindFirstChild("Level")
-                if lvlObj then fruitLevel = tostring(math.floor(lvlObj.Value)) end
+        if fruitsFolder and fruitName ~= "None" and fruitName ~= "" then
+            local fruitObj = fruitsFolder:FindFirstChild(fruitName)
+            if fruitObj then
+                local lvlObj = fruitObj:FindFirstChild("Level")
+                if lvlObj then 
+                    fruitLevel = tostring(math.floor(lvlObj.Value)) 
+                end
             end
         end
     end
+    
     return fruitName, fruitLevel
 end
 
@@ -620,7 +632,7 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Player ESP
+    -- Player ESP (Detailed Fruit Slot/Slots Data Sync)
     for plr, data in pairs(espObjects) do
         local char = plr.Character; local isAnyEspOn = universalEspEnabled or fbgEspEnabled
         if isAnyEspOn and char and char:FindFirstChild("Head") then
@@ -630,8 +642,10 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
 
                 if fbgEspEnabled then
                     data.FruitLbl.Visible = true; data.LevelLbl.Visible = true; data.DistLbl.Visible = true; data.HealthBg.Visible = true
+                    
                     local activeFruit, fruitLevel = getExactFruitAndLevel(plr)
-                    data.FruitLbl.Text = "Fruit: " .. activeFruit
+                    
+                    data.FruitLbl.Text = "Fruit: " .. string.upper(activeFruit)
                     data.LevelLbl.Text = "Level: " .. fruitLevel
                     if myHrp and root then data.DistLbl.Text = math.floor((myHrp.Position - root.Position).Magnitude) .. " studs" end
                     local hp = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
@@ -770,4 +784,4 @@ MainLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() ta
 FbgLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() tabs["Fruit BG"].Page.CanvasSize = UDim2.new(0, 0, 0, FbgLayout.AbsoluteContentSize.Y + 20) end)
 ServerLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() tabs["Server"].Page.CanvasSize = UDim2.new(0, 0, 0, ServerLayout.AbsoluteContentSize.Y + 20) end)
 
-print("[CyRuZzz Hub] Clean Version Loaded (Leveling & Spin Removed)!")
+print("[CyRuZzz Hub] Full Code Loaded - Fruit ESP Updated with Slot & Fruits Sync!")
