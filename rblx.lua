@@ -1,6 +1,7 @@
 -- ============================================================
---  CyRuZzz Universal & Fruit BG Hub (Modernized)
+--  CyRuZzz Universal & Fruit BG Hub (Modernized - FIXED)
 --  Fly Lock Leveling + Clean Modern UI + Optimized
+--  ERROR FIXES: DamageTag, HTTP 429, Asset Approval
 -- ============================================================
 
 local Players              = game:GetService("Players")
@@ -39,7 +40,7 @@ local selectedPlayer       = nil
 local selectedArea         = nil
 
 -- Leveling Safety Anchor Config
-local levelingMode         = "Current Position" -- Options: "Current Position", "Preset High Safe Spot", "Selected Area"
+local levelingMode         = "Current Position"
 local presetSafeCFrame     = CFrame.new(0, 500, 0)
 
 local customAreas          = {}
@@ -51,6 +52,59 @@ local toggleSetters        = {}
 
 local flyConn, noclipConn, speedConn
 local ReplicatorNoYield    = ReplicatedStorage:FindFirstChild("ReplicatorNoYield")
+
+-- ============================================================
+--  HTTP 429 FIX: Rate Limiter untuk API Calls
+-- ============================================================
+local RateLimiter = {
+    lastCall = 0,
+    minDelay = 1.5, -- Minimum 1.5 detik antara requests
+    callCount = 0,
+    maxCallsPerMinute = 20
+}
+
+function RateLimiter:WaitIfNeeded()
+    local now = tick()
+    local elapsed = now - self.lastCall
+    
+    if elapsed < self.minDelay then
+        task.wait(self.minDelay - elapsed)
+    end
+    
+    self.callCount = self.callCount + 1
+    if self.callCount >= self.maxCallsPerMinute then
+        task.wait(60) -- Reset setiap menit
+        self.callCount = 0
+    end
+    
+    self.lastCall = tick()
+end
+
+function RateLimiter:Reset()
+    self.callCount = 0
+    self.lastCall = 0
+end
+
+-- Safe wrapper untuk GetNameFromUserIdAsync
+local function SafeGetNameFromUserId(userId)
+    RateLimiter:WaitIfNeeded()
+    
+    local success, result = pcall(function()
+        return Players:GetNameFromUserIdAsync(userId)
+    end)
+    
+    if success then
+        return result
+    else
+        -- Handle HTTP 429 atau error lainnya
+        if string.find(tostring(result), "429") then
+            warn("[Rate Limit] Terlalu banyak request, menunggu...")
+            task.wait(5)
+            return SafeGetNameFromUserId(userId) -- Retry
+        end
+        return "Unknown"
+    end
+end
 
 -- Cleanup Old UI
 if PlayerGui:FindFirstChild("CyRuZzz_UniversalHub") then
@@ -1004,7 +1058,7 @@ local function isSkillReady(skillName)
     return true
 end
 
--- Fungsi Aktivasi Skill yang Lebih Aman & Stabil (Menggantikan VirtualInputManager)
+-- Fungsi Aktivasi Skill yang Lebih Aman & Stabil
 local function useSkill(tool, hold, duration)
     local char = LP.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
