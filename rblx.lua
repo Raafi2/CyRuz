@@ -1,6 +1,7 @@
 -- ============================================================
---  CyRuZzz Panel V2 (Ultimate Edition) | Fruit Battlegrounds
+--  CyRuZzz Panel V2 (Xeno Fixed) | Fruit Battlegrounds
 --  All-in-One: ESP, Player Mods, Movement, & Auto Skill
+--  Fix: No CoreGui Error
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -8,7 +9,6 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
-local CoreGui = game:GetService("CoreGui")
 
 local LP = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -29,17 +29,23 @@ local Configs = {
 local espObjects = {}
 local flyConn = nil
 local noclipConn = nil
-local speedConn = nil
 local loopTask = nil
 
 -- ============================================================
---  MODERN UI LIBRARY (MINIFIED)
+--  SAFE GUI CONTAINER (PlayerGui Only)
 -- ============================================================
+local playerGui = LP:WaitForChild("PlayerGui")
+
+-- Hapus GUI lama jika ada
+if playerGui:FindFirstChild("CyRuZzz_V2_Ultimate") then
+    playerGui.CyRuZzz_V2_Ultimate:Destroy()
+end
+
 local SG = Instance.new("ScreenGui")
 SG.Name = "CyRuZzz_V2_Ultimate"
 SG.ResetOnSpawn = false
-pcall(function() SG.Parent = CoreGui end)
-if SG.Parent ~= CoreGui then SG.Parent = LP:WaitForChild("PlayerGui") end
+SG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+SG.Parent = playerGui
 
 local Main = Instance.new("Frame", SG)
 Main.Size = UDim2.new(0, 260, 0, 420)
@@ -127,7 +133,7 @@ MakeInput("Skill 3 Hold (s)", "Skill3")
 MakeInput("Skill 4 Hold (s)", "Skill4")
 
 -- ============================================================
---  ESP & STATS LOGIC
+--  ESP LOGIC (PlayerGui Target Only)
 -- ============================================================
 local function getPlayerStat(plr, statName)
     local data = plr:FindFirstChild("leaderstats") or plr:FindFirstChild("Data") or plr:FindFirstChild("Stats")
@@ -158,21 +164,22 @@ local function createEspGui(plr)
     local LevelLbl = makeText(Color3.fromRGB(255, 255, 0), Enum.Font.GothamBold, 13)
     local BountyLbl = makeText(Color3.fromRGB(255, 0, 0), Enum.Font.GothamBold, 13)
     local DistLbl = makeText(Color3.fromRGB(200, 200, 200), Enum.Font.GothamSemibold, 12)
-    Instance.new("Frame", espHolder).Size = UDim2.new(1, 0, 0, 10).BackgroundTransparency = 1 -- Spacer
+    local Spacer = Instance.new("Frame", espHolder); Spacer.Size = UDim2.new(1, 0, 0, 10); Spacer.BackgroundTransparency = 1
 
     local HealthBg = Instance.new("Frame", espHolder); HealthBg.Size = UDim2.new(0, 120, 0, 12); HealthBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0); HealthBg.BorderSizePixel = 0
     local HealthFill = Instance.new("Frame", HealthBg); HealthFill.Size = UDim2.new(1, -2, 1, -2); HealthFill.Position = UDim2.new(0, 1, 0, 1); HealthFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0); HealthFill.BorderSizePixel = 0
 
     local Highlight = Instance.new("Highlight"); Highlight.Name = "CyChams_" .. plr.Name; Highlight.FillColor = Color3.fromRGB(255, 0, 0); Highlight.OutlineColor = Color3.fromRGB(255, 0, 0); Highlight.FillTransparency = 0.5; Highlight.OutlineTransparency = 0.1
 
-    pcall(function() espHolder.Parent = CoreGui; Highlight.Parent = CoreGui end)
-    if espHolder.Parent ~= CoreGui then espHolder.Parent = LP:WaitForChild("PlayerGui"); Highlight.Parent = LP:WaitForChild("PlayerGui") end
+    -- Simpan langsung ke PlayerGui agar Xeno tidak error
+    espHolder.Parent = playerGui
+    Highlight.Parent = playerGui
 
     espObjects[plr] = {Billboard = espHolder, Highlight = Highlight, FruitLbl = FruitLbl, LevelLbl = LevelLbl, BountyLbl = BountyLbl, DistLbl = DistLbl, HealthFill = HealthFill}
 end
 
 -- ============================================================
---  MOVEMENT LOGIC (Fly & Noclip)
+--  MOVEMENT LOGIC
 -- ============================================================
 local function getChar() return LP.Character end
 
@@ -223,12 +230,12 @@ function disableNoclip()
 end
 
 -- ============================================================
---  AUTO SKILL LOGIC (Virtual Input + Cooldown Skip)
+--  AUTO SKILL LOGIC
 -- ============================================================
 local function isSkillOnCooldown(slotName)
-    local playerGui = LP:FindFirstChild("PlayerGui")
-    if not playerGui then return false end
-    local mainGui = playerGui:FindFirstChild("Main") or playerGui:FindFirstChild("HUD") or playerGui:FindFirstChild("Hotbar")
+    local pGui = LP:FindFirstChild("PlayerGui")
+    if not pGui then return false end
+    local mainGui = pGui:FindFirstChild("Main") or pGui:FindFirstChild("HUD") or pGui:FindFirstChild("Hotbar")
     if mainGui then
         local slotFrame = mainGui:FindFirstChild(tostring(slotName), true) or mainGui:FindFirstChild("Slot" .. slotName, true)
         if slotFrame then
@@ -289,33 +296,28 @@ task.spawn(function()
 end)
 
 -- ============================================================
---  RENDER LOOP (ESP, Anti-Stun, WalkSpeed, Inf Dash)
+--  RENDER LOOP
 -- ============================================================
 RunService.RenderStepped:Connect(function()
     local myChar = LP.Character
     local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
     local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
 
-    -- WALK SPEED OVERRIDE
     if myHum and myHum.WalkSpeed ~= Configs.WalkSpeed and not Toggles.AntiStun then
-        -- Hanya timpa jika WalkSpeed lebih besar dari 16 agar jalan normal, kecuali AntiStun menyala
         if Configs.WalkSpeed > 16 then myHum.WalkSpeed = Configs.WalkSpeed end
     end
 
-    -- ANTI STUN
     if Toggles.AntiStun and myChar then
         local stunObj = myChar:FindFirstChild("Stun") or myChar:FindFirstChild("Stunned") or myChar:FindFirstChild("Freeze")
         if stunObj then stunObj:Destroy() end
         if myHum and myHum.WalkSpeed == 0 then myHum.WalkSpeed = Configs.WalkSpeed end
     end
 
-    -- INFINITE DASH
     if Toggles.InfDash and myChar then
         local dashCd = myChar:FindFirstChild("DashCooldown") or myChar:FindFirstChild("GeppoCooldown") or myChar:FindFirstChild("Dodging")
         if dashCd then dashCd:Destroy() end
     end
 
-    -- ESP
     if Toggles.ESP then
         for _, plr in ipairs(Players:GetPlayers()) do
             if plr ~= LP then
@@ -354,7 +356,6 @@ end)
 
 Players.PlayerRemoving:Connect(removeEspGui)
 
--- INFINITE JUMP
 UserInputService.JumpRequest:Connect(function()
     if Toggles.InfJump then
         local char = LP.Character
@@ -365,11 +366,10 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- RESPAWN HANDLER
 LP.CharacterAdded:Connect(function()
     task.wait(0.5)
     if Toggles.Fly then enableFly() end
     if Toggles.Noclip then enableNoclip() end
 end)
 
-print("[CyRuZzz V2] Ultimate Loaded!")
+print("[CyRuZzz V2] Fixed & Loaded via PlayerGui!")
