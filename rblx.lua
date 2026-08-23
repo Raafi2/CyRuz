@@ -1,6 +1,5 @@
 -- ============================================================
---  CyRuZzz Universal & Fruit BG Hub
---  Auto Spin + Fly Lock Leveling + Clean UI
+--  CyRuZzz Universal & Fruit BG Hub (Clean Cursor-Free Edition)
 -- ============================================================
 
 local Players              = game:GetService("Players")
@@ -9,7 +8,6 @@ local UserInputService     = game:GetService("UserInputService")
 local TeleportService      = game:GetService("TeleportService")
 local HttpService          = game:GetService("HttpService")
 local VirtualUser          = game:GetService("VirtualUser")
-local VirtualInputManager  = game:GetService("VirtualInputManager")
 local ReplicatedStorage    = game:GetService("ReplicatedStorage")
 
 local LP                   = Players.LocalPlayer
@@ -31,10 +29,6 @@ local antiStunEnabled      = false
 local infDashEnabled       = false
 local infJumpEnabled       = false
 
--- Auto Spin Config
-local autoSpinEnabled      = false
-local targetRarity         = "Legendary" -- Options: "Rare", "Epic", "Legendary", "Mythic"
-
 local flySpeed             = 60
 local walkSpeedVal         = 100
 local tp1Pos               = nil
@@ -54,16 +48,6 @@ local connections          = {}
 
 local flyConn, noclipConn, speedConn
 local ReplicatorNoYield    = ReplicatedStorage:FindFirstChild("ReplicatorNoYield")
-
--- Rarity Weights for Auto Spin Stop
-local rarityLevels = {
-    ["Common"]    = 1,
-    ["Uncommon"]  = 2,
-    ["Rare"]      = 3,
-    ["Epic"]      = 4,
-    ["Legendary"] = 5,
-    ["Mythic"]    = 6
-}
 
 -- Cleanup Old UI
 if PlayerGui:FindFirstChild("CyRuZzz_UniversalHub") then
@@ -416,9 +400,7 @@ GotoPlrBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ============================================================
---  LOGIKA DETEKSI BUAH VIA MAIN_DATA
--- ============================================================
+-- LOGIKA DETEKSI BUAH VIA MAIN_DATA
 local function getExactFruitAndLevel(plr)
     local fruitName, fruitLevel = "Unknown", "0"
     local mainData = plr:FindFirstChild("MAIN_DATA")
@@ -450,34 +432,6 @@ end
 -- ============================================================
 --  2. FRUIT BATTLEGROUNDS TAB
 -- ============================================================
-addSectionHeader(FbgTab, "Auto Spin Fruit")
-
-local TargetRarityCard = Instance.new("Frame")
-TargetRarityCard.Size = UDim2.new(1, -10, 0, 42); TargetRarityCard.BackgroundColor3 = Color3.fromRGB(22, 26, 40); TargetRarityCard.BorderSizePixel = 0; TargetRarityCard.Parent = FbgTab
-Instance.new("UICorner", TargetRarityCard).CornerRadius = UDim.new(0, 6)
-
-local TargetRarityLbl = Instance.new("TextLabel")
-TargetRarityLbl.Size = UDim2.new(0.4, 0, 1, 0); TargetRarityLbl.Position = UDim2.new(0, 10, 0, 0); TargetRarityLbl.BackgroundTransparency = 1; TargetRarityLbl.Text = "Stop On Rarity:"; TargetRarityLbl.TextColor3 = Color3.fromRGB(240, 245, 255); TargetRarityLbl.Font = Enum.Font.GothamSemibold; TargetRarityLbl.TextSize = 10; TargetRarityLbl.TextXAlignment = Enum.TextXAlignment.Left; TargetRarityLbl.Parent = TargetRarityCard
-
-local TargetRarityBtn = Instance.new("TextButton")
-TargetRarityBtn.Size = UDim2.new(0, 120, 0, 26); TargetRarityBtn.Position = UDim2.new(1, -130, 0.5, -13); TargetRarityBtn.BackgroundColor3 = Color3.fromRGB(38, 45, 70); TargetRarityBtn.BorderSizePixel = 0; TargetRarityBtn.Text = targetRarity; TargetRarityBtn.TextColor3 = Color3.fromRGB(255, 215, 0); TargetRarityBtn.Font = Enum.Font.GothamBold; TargetRarityBtn.TextSize = 10; TargetRarityBtn.Parent = TargetRarityCard
-Instance.new("UICorner", TargetRarityBtn).CornerRadius = UDim.new(0, 5)
-
-TargetRarityBtn.MouseButton1Click:Connect(function()
-    if targetRarity == "Rare" then
-        targetRarity = "Epic"
-    elseif targetRarity == "Epic" then
-        targetRarity = "Legendary"
-    elseif targetRarity == "Legendary" then
-        targetRarity = "Mythic"
-    else
-        targetRarity = "Rare"
-    end
-    TargetRarityBtn.Text = targetRarity
-end)
-
-addToggle(FbgTab, "Auto Spin Engine", "Otomatis spin sampai dapat rarity target", false, function(v) autoSpinEnabled = v end)
-
 addSectionHeader(FbgTab, "Combat & Target")
 addToggle(FbgTab, "Auto Aim (Gyro Lock)", "Otomatis mengunci ke musuh terdekat", false, function(v) autoAimEnabled = v end)
 addToggle(FbgTab, "Advanced Anti-Stun", "Secara aktif menghapus efek freeze, stun & combo", false, function(v) antiStunEnabled = v end)
@@ -576,7 +530,7 @@ end)
 
 addSectionHeader(FbgTab, "Auto Leveling Config")
 
--- Leveling Spot Custom Interactive UI Panel (TERBARU & LEBIH RAPI)
+-- Leveling Spot Custom Interactive UI Panel
 local LevCardGroup = Instance.new("Frame")
 LevCardGroup.Size = UDim2.new(1, -10, 0, 110); LevCardGroup.BackgroundColor3 = Color3.fromRGB(22, 26, 40); LevCardGroup.BorderSizePixel = 0; LevCardGroup.Parent = FbgTab
 Instance.new("UICorner", LevCardGroup).CornerRadius = UDim.new(0, 8)
@@ -613,7 +567,7 @@ createModeOption("Current Position (Berdiri Bebas)", "Current Position", 30)
 createModeOption("Preset High Safe Spot (Melayang di Udara)", "Preset High Safe Spot", 58)
 createModeOption("Selected Area (Ke Area Yang Dipilih)", "Selected Area", 84)
 
-addToggle(FbgTab, "Auto Leveling Engine", "Rotasi skill otomatis dengan Safety Fly Anchor", false, function(v) autoLevelingEnabled = v end)
+addToggle(FbgTab, "Auto Leveling Engine", "Rotasi skill otomatis tanpa menyentuh mouse", false, function(v) autoLevelingEnabled = v end)
 
 local SkillCardContainer = Instance.new("Frame")
 SkillCardContainer.Size = UDim2.new(1, -10, 0, 150); SkillCardContainer.BackgroundColor3 = Color3.fromRGB(20, 24, 38); SkillCardContainer.BorderSizePixel = 0; SkillCardContainer.Parent = FbgTab
@@ -712,59 +666,8 @@ addButton(ServerTab, "Server Hop (Random)", "HOP", function()
 end)
 
 -- ============================================================
---  EXECUTION LOOPS & AUTO SPIN ENGINE
+--  EXECUTION LOOPS
 -- ============================================================
-local function getCurrentRarity()
-    local mainData = LP:FindFirstChild("MAIN_DATA")
-    if mainData then
-        local activeFruit = getExactFruitAndLevel(LP)
-        local fruitsFolder = mainData:FindFirstChild("Fruits")
-        if fruitsFolder and activeFruit ~= "Unknown" then
-            local fruitObj = fruitsFolder:FindFirstChild(activeFruit)
-            if fruitObj then
-                local rVal = fruitObj:FindFirstChild("Rarity") or fruitObj:FindFirstChild("Tier")
-                if rVal then return tostring(rVal.Value) end
-            end
-        end
-    end
-    return "Common"
-end
-
--- Auto Spin Loop Engine
-task.spawn(function()
-    while task.wait(1.2) do
-        if autoSpinEnabled then
-            local currentRarity = getCurrentRarity()
-            local currentWeight = rarityLevels[currentRarity] or 1
-            local targetWeight  = rarityLevels[targetRarity] or 5
-
-            if currentWeight >= targetWeight then
-                autoSpinEnabled = false
-                if toggleSetters["Auto Spin Engine"] then toggleSetters["Auto Spin Engine"](false) end
-                print("[CyRuZzz Auto Spin] Target Rarity Reached: " .. currentRarity)
-            else
-                -- 1. Coba Pemicu Remote Replicator
-                if ReplicatorNoYield then
-                    pcall(function() ReplicatorNoYield:FireServer("Spin", "Spin") end)
-                end
-
-                -- 2. Trigger Tombol Spin UI sebagai Cadangan
-                local spinGui = PlayerGui:FindFirstChild("UI") and PlayerGui.UI:FindFirstChild("Spin")
-                if spinGui then
-                    local spinBtn = spinGui:FindFirstChild("SpinButton") or spinGui:FindFirstChild("Spin")
-                    if spinBtn and spinBtn:IsA("GuiButton") then
-                        pcall(function()
-                            local center = spinBtn.AbsolutePosition + (spinBtn.AbsoluteSize / 2)
-                            VirtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, true, game, 1)
-                            task.wait(0.05)
-                            VirtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, false, game, 1)
-                        end)
-                    end
-                end
-            end
-        end
-    end
-end)
 
 local function getClosestEnemy()
     local closestPlr = nil; local shortestDist = math.huge
@@ -927,7 +830,7 @@ table.insert(connections, Players.PlayerAdded:Connect(createEsp))
 table.insert(connections, Players.PlayerRemoving:Connect(removeEsp))
 for _, p in ipairs(Players:GetPlayers()) do createEsp(p) end
 
--- Global Two-Way Keyboard & UI Switch Sync Engine
+-- Keyboard & UI Switch Sync Engine
 table.insert(connections, UserInputService.InputBegan:Connect(function(inp, gameProcessed)
     if gameProcessed then return end
     
@@ -947,7 +850,7 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(inp, game
     end
 end))
 
--- FBG Auto Leveling Loop Dengan Safety Fly Anchor (Anti-Fall & Anti-Gravity Lock)
+-- FBG Auto Leveling Loop (Tanpa Kursor Mouse)
 local function isSkillReady(skillName)
     local cdFolder = LP:FindFirstChild("Cooldowns")
     if cdFolder then
@@ -964,7 +867,6 @@ local function enforceSafetyAnchor()
     if not myHrp or not hum then return end
 
     if levelingMode ~= "Current Position" then
-        -- Pasang Anti-Gravity Lock / Auto Fly jika belum aktif
         local bv = myHrp:FindFirstChild("_CyLevBV") or Instance.new("BodyVelocity")
         bv.Name = "_CyLevBV"; bv.Velocity = Vector3.zero; bv.MaxForce = Vector3.new(1e5, 1e5, 1e5); bv.Parent = myHrp
         hum.PlatformStand = true
@@ -999,16 +901,19 @@ task.spawn(function()
                             task.wait(0.1)
 
                             hum:EquipTool(tool); task.wait(0.15)
-                            local centerPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                            
+                            -- Aktivasi Skill Native Roblox (Bebas Kursor Mouse)
                             if cfg.Hold then
-                                VirtualInputManager:SendMouseButtonEvent(centerPos.X, centerPos.Y, 0, true, game, 1)
+                                tool:Activate()
                                 task.wait(cfg.Duration)
-                                VirtualInputManager:SendMouseButtonEvent(centerPos.X, centerPos.Y, 0, false, game, 1)
+                                if tool and tool:FindFirstChild("Deactivate") then
+                                    tool:Deactivate()
+                                end
                             else
-                                VirtualInputManager:SendMouseButtonEvent(centerPos.X, centerPos.Y, 0, true, game, 1)
+                                tool:Activate()
                                 task.wait(0.05)
-                                VirtualInputManager:SendMouseButtonEvent(centerPos.X, centerPos.Y, 0, false, game, 1)
                             end
+
                             task.wait(0.2); hum:UnequipTools(); task.wait(0.1)
 
                             enforceSafetyAnchor()
@@ -1018,7 +923,6 @@ task.spawn(function()
                 end
             end
         else
-            -- Hapus Anti-Gravity Lock saat leveling mati
             local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
             if myHrp and myHrp:FindFirstChild("_CyLevBV") then myHrp._CyLevBV:Destroy() end
         end
@@ -1028,7 +932,7 @@ end)
 -- Total Cleanup
 CloseBtn.MouseButton1Click:Connect(function()
     autoLevelingEnabled = false; autoAimEnabled = false; universalEspEnabled = false; fbgEspEnabled = false; npcEspEnabled = false; antiAfkEnabled = false
-    antiStunEnabled = false; infDashEnabled = false; infJumpEnabled = false; autoSpinEnabled = false
+    antiStunEnabled = false; infDashEnabled = false; infJumpEnabled = false
     if flyConn then flyConn:Disconnect() end
     if noclipConn then noclipConn:Disconnect() end
     if speedConn then speedConn:Disconnect() end
@@ -1053,4 +957,4 @@ MainLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() ta
 FbgLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() tabs["Fruit BG"].Page.CanvasSize = UDim2.new(0, 0, 0, FbgLayout.AbsoluteContentSize.Y + 20) end)
 ServerLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() tabs["Server"].Page.CanvasSize = UDim2.new(0, 0, 0, ServerLayout.AbsoluteContentSize.Y + 20) end)
 
-print("[CyRuZzz Universal Hub] Auto Spin & Fly Safe Leveling Ready!")
+print("[CyRuZzz Hub] Ready - Auto Spin Removed & Cursor-Free Auto Leveling Active!")
