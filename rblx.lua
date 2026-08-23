@@ -1,5 +1,6 @@
 -- ============================================================
---  CyRuZzz Universal & Fruit BG Hub (Clean Cursor-Free Edition)
+--  CyRuZzz Universal & Fruit BG Hub
+--  Full Final Edition (Virtual Keyboard Trigger & Anti-Fall Fly)
 -- ============================================================
 
 local Players              = game:GetService("Players")
@@ -8,6 +9,7 @@ local UserInputService     = game:GetService("UserInputService")
 local TeleportService      = game:GetService("TeleportService")
 local HttpService          = game:GetService("HttpService")
 local VirtualUser          = game:GetService("VirtualUser")
+local VirtualInputManager  = game:GetService("VirtualInputManager")
 local ReplicatedStorage    = game:GetService("ReplicatedStorage")
 
 local LP                   = Players.LocalPlayer
@@ -48,6 +50,16 @@ local connections          = {}
 
 local flyConn, noclipConn, speedConn
 local ReplicatorNoYield    = ReplicatedStorage:FindFirstChild("ReplicatorNoYield")
+
+-- KeyCode Mapping untuk Trigger Hotbar 1-6 tanpa Mouse
+local slotKeyCodes = {
+    [1] = Enum.KeyCode.One,
+    [2] = Enum.KeyCode.Two,
+    [3] = Enum.KeyCode.Three,
+    [4] = Enum.KeyCode.Four,
+    [5] = Enum.KeyCode.Five,
+    [6] = Enum.KeyCode.Six
+}
 
 -- Cleanup Old UI
 if PlayerGui:FindFirstChild("CyRuZzz_UniversalHub") then
@@ -850,7 +862,7 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(inp, game
     end
 end))
 
--- FBG Auto Leveling Loop (Tanpa Kursor Mouse)
+-- FBG Auto Leveling Loop (Virtual Keyboard Input & Replicator Fallback - Bebas Kursor Mouse)
 local function isSkillReady(skillName)
     local cdFolder = LP:FindFirstChild("Cooldowns")
     if cdFolder then
@@ -890,35 +902,50 @@ end
 task.spawn(function()
     while task.wait(0.3) do
         if autoLevelingEnabled then
-            local backpack = LP:FindFirstChild("Backpack"); local char = LP.Character; local hum = char and char:FindFirstChildOfClass("Humanoid")
+            local backpack = LP:FindFirstChild("Backpack")
+            local char = LP.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            
             if backpack and hum then
+                local toolsList = {}
                 for _, tool in ipairs(backpack:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        table.insert(toolsList, tool)
+                    end
+                end
+                
+                for index, tool in ipairs(toolsList) do
                     if not autoLevelingEnabled then break end
-                    if tool:IsA("Tool") and not tool:GetAttribute("Locked") then
-                        local name = tool.Name; local cfg = skillConfigs[name] or { Enabled = true, Hold = false, Duration = 1.0 }
-                        if cfg.Enabled and isSkillReady(name) then
-                            enforceSafetyAnchor()
-                            task.wait(0.1)
+                    
+                    local name = tool.Name
+                    local cfg = skillConfigs[name] or { Enabled = true, Hold = false, Duration = 1.0 }
+                    local targetKey = slotKeyCodes[index] or Enum.KeyCode.One
+                    
+                    if cfg.Enabled and isSkillReady(name) then
+                        enforceSafetyAnchor()
+                        task.wait(0.1)
 
-                            hum:EquipTool(tool); task.wait(0.15)
-                            
-                            -- Aktivasi Skill Native Roblox (Bebas Kursor Mouse)
-                            if cfg.Hold then
-                                tool:Activate()
-                                task.wait(cfg.Duration)
-                                if tool and tool:FindFirstChild("Deactivate") then
-                                    tool:Deactivate()
-                                end
-                            else
-                                tool:Activate()
-                                task.wait(0.05)
-                            end
-
-                            task.wait(0.2); hum:UnequipTools(); task.wait(0.1)
-
-                            enforceSafetyAnchor()
-                            task.wait(0.2)
+                        -- 1. Backup Direct Remote Fire
+                        if ReplicatorNoYield then
+                            pcall(function()
+                                ReplicatorNoYield:FireServer("Skills", name, { Tool = tool })
+                            end)
                         end
+
+                        -- 2. Trigger Input Keyboard Virtual Hotbar 1-6
+                        if cfg.Hold then
+                            VirtualInputManager:SendKeyEvent(true, targetKey, false, game)
+                            task.wait(cfg.Duration)
+                            VirtualInputManager:SendKeyEvent(false, targetKey, false, game)
+                        else
+                            VirtualInputManager:SendKeyEvent(true, targetKey, false, game)
+                            task.wait(0.05)
+                            VirtualInputManager:SendKeyEvent(false, targetKey, false, game)
+                        end
+
+                        task.wait(0.3)
+                        enforceSafetyAnchor()
+                        task.wait(0.2)
                     end
                 end
             end
@@ -957,4 +984,4 @@ MainLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() ta
 FbgLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() tabs["Fruit BG"].Page.CanvasSize = UDim2.new(0, 0, 0, FbgLayout.AbsoluteContentSize.Y + 20) end)
 ServerLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() tabs["Server"].Page.CanvasSize = UDim2.new(0, 0, 0, ServerLayout.AbsoluteContentSize.Y + 20) end)
 
-print("[CyRuZzz Hub] Ready - Auto Spin Removed & Cursor-Free Auto Leveling Active!")
+print("[CyRuZzz Universal Hub] Final Full Version Loaded Successfully!")
