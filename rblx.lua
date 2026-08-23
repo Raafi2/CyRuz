@@ -1,6 +1,6 @@
 -- ============================================================
 --  CyRuZzz Universal & Fruit BG Hub
---  Full Two-Way Keyboard & UI Switch Sync Engine
+--  Auto Spin + Fly Lock Leveling + Clean UI
 -- ============================================================
 
 local Players              = game:GetService("Players")
@@ -31,6 +31,10 @@ local antiStunEnabled      = false
 local infDashEnabled       = false
 local infJumpEnabled       = false
 
+-- Auto Spin Config
+local autoSpinEnabled      = false
+local targetRarity         = "Legendary" -- Options: "Rare", "Epic", "Legendary", "Mythic"
+
 local flySpeed             = 60
 local walkSpeedVal         = 100
 local tp1Pos               = nil
@@ -50,6 +54,16 @@ local connections          = {}
 
 local flyConn, noclipConn, speedConn
 local ReplicatorNoYield    = ReplicatedStorage:FindFirstChild("ReplicatorNoYield")
+
+-- Rarity Weights for Auto Spin Stop
+local rarityLevels = {
+    ["Common"]    = 1,
+    ["Uncommon"]  = 2,
+    ["Rare"]      = 3,
+    ["Epic"]      = 4,
+    ["Legendary"] = 5,
+    ["Mythic"]    = 6
+}
 
 -- Cleanup Old UI
 if PlayerGui:FindFirstChild("CyRuZzz_UniversalHub") then
@@ -436,6 +450,34 @@ end
 -- ============================================================
 --  2. FRUIT BATTLEGROUNDS TAB
 -- ============================================================
+addSectionHeader(FbgTab, "Auto Spin Fruit")
+
+local TargetRarityCard = Instance.new("Frame")
+TargetRarityCard.Size = UDim2.new(1, -10, 0, 42); TargetRarityCard.BackgroundColor3 = Color3.fromRGB(22, 26, 40); TargetRarityCard.BorderSizePixel = 0; TargetRarityCard.Parent = FbgTab
+Instance.new("UICorner", TargetRarityCard).CornerRadius = UDim.new(0, 6)
+
+local TargetRarityLbl = Instance.new("TextLabel")
+TargetRarityLbl.Size = UDim2.new(0.4, 0, 1, 0); TargetRarityLbl.Position = UDim2.new(0, 10, 0, 0); TargetRarityLbl.BackgroundTransparency = 1; TargetRarityLbl.Text = "Stop On Rarity:"; TargetRarityLbl.TextColor3 = Color3.fromRGB(240, 245, 255); TargetRarityLbl.Font = Enum.Font.GothamSemibold; TargetRarityLbl.TextSize = 10; TargetRarityLbl.TextXAlignment = Enum.TextXAlignment.Left; TargetRarityLbl.Parent = TargetRarityCard
+
+local TargetRarityBtn = Instance.new("TextButton")
+TargetRarityBtn.Size = UDim2.new(0, 120, 0, 26); TargetRarityBtn.Position = UDim2.new(1, -130, 0.5, -13); TargetRarityBtn.BackgroundColor3 = Color3.fromRGB(38, 45, 70); TargetRarityBtn.BorderSizePixel = 0; TargetRarityBtn.Text = targetRarity; TargetRarityBtn.TextColor3 = Color3.fromRGB(255, 215, 0); TargetRarityBtn.Font = Enum.Font.GothamBold; TargetRarityBtn.TextSize = 10; TargetRarityBtn.Parent = TargetRarityCard
+Instance.new("UICorner", TargetRarityBtn).CornerRadius = UDim.new(0, 5)
+
+TargetRarityBtn.MouseButton1Click:Connect(function()
+    if targetRarity == "Rare" then
+        targetRarity = "Epic"
+    elseif targetRarity == "Epic" then
+        targetRarity = "Legendary"
+    elseif targetRarity == "Legendary" then
+        targetRarity = "Mythic"
+    else
+        targetRarity = "Rare"
+    end
+    TargetRarityBtn.Text = targetRarity
+end)
+
+addToggle(FbgTab, "Auto Spin Engine", "Otomatis spin sampai dapat rarity target", false, function(v) autoSpinEnabled = v end)
+
 addSectionHeader(FbgTab, "Combat & Target")
 addToggle(FbgTab, "Auto Aim (Gyro Lock)", "Otomatis mengunci ke musuh terdekat", false, function(v) autoAimEnabled = v end)
 addToggle(FbgTab, "Advanced Anti-Stun", "Secara aktif menghapus efek freeze, stun & combo", false, function(v) antiStunEnabled = v end)
@@ -534,29 +576,44 @@ end)
 
 addSectionHeader(FbgTab, "Auto Leveling Config")
 
-local LevelingPosCard = Instance.new("Frame")
-LevelingPosCard.Size = UDim2.new(1, -10, 0, 42); LevelingPosCard.BackgroundColor3 = Color3.fromRGB(22, 26, 40); LevelingPosCard.BorderSizePixel = 0; LevelingPosCard.Parent = FbgTab
-Instance.new("UICorner", LevelingPosCard).CornerRadius = UDim.new(0, 6)
+-- Leveling Spot Custom Interactive UI Panel (TERBARU & LEBIH RAPI)
+local LevCardGroup = Instance.new("Frame")
+LevCardGroup.Size = UDim2.new(1, -10, 0, 110); LevCardGroup.BackgroundColor3 = Color3.fromRGB(22, 26, 40); LevCardGroup.BorderSizePixel = 0; LevCardGroup.Parent = FbgTab
+Instance.new("UICorner", LevCardGroup).CornerRadius = UDim.new(0, 8)
 
-local LevPosLbl = Instance.new("TextLabel")
-LevPosLbl.Size = UDim2.new(0.4, 0, 1, 0); LevPosLbl.Position = UDim2.new(0, 10, 0, 0); LevPosLbl.BackgroundTransparency = 1; LevPosLbl.Text = "Leveling Location:"; LevPosLbl.TextColor3 = Color3.fromRGB(240, 245, 255); LevPosLbl.Font = Enum.Font.GothamSemibold; LevPosLbl.TextSize = 10; LevPosLbl.TextXAlignment = Enum.TextXAlignment.Left; LevPosLbl.Parent = LevelingPosCard
+local LevGroupTitle = Instance.new("TextLabel")
+LevGroupTitle.Size = UDim2.new(1, -20, 0, 20); LevGroupTitle.Position = UDim2.new(0, 10, 0, 6); LevGroupTitle.BackgroundTransparency = 1; LevGroupTitle.Text = "LEVELING SAFE POSITION MODE"; LevGroupTitle.TextColor3 = Color3.fromRGB(140, 160, 210); LevGroupTitle.Font = Enum.Font.GothamBold; LevGroupTitle.TextSize = 10; LevGroupTitle.TextXAlignment = Enum.TextXAlignment.Left; LevGroupTitle.Parent = LevCardGroup
 
-local LevPosModeBtn = Instance.new("TextButton")
-LevPosModeBtn.Size = UDim2.new(0, 140, 0, 26); LevPosModeBtn.Position = UDim2.new(1, -150, 0.5, -13); LevPosModeBtn.BackgroundColor3 = Color3.fromRGB(38, 45, 70); LevPosModeBtn.BorderSizePixel = 0; LevPosModeBtn.Text = levelingMode; LevPosModeBtn.TextColor3 = Color3.fromRGB(0, 255, 180); LevPosModeBtn.Font = Enum.Font.GothamBold; LevPosModeBtn.TextSize = 9; LevPosModeBtn.Parent = LevelingPosCard
-Instance.new("UICorner", LevPosModeBtn).CornerRadius = UDim.new(0, 5)
+local modeButtons = {}
 
-LevPosModeBtn.MouseButton1Click:Connect(function()
-    if levelingMode == "Current Position" then
-        levelingMode = "Preset High Safe Spot"
-    elseif levelingMode == "Preset High Safe Spot" then
-        levelingMode = "Selected Area"
-    else
-        levelingMode = "Current Position"
-    end
-    LevPosModeBtn.Text = levelingMode
-end)
+local function createModeOption(title, modeVal, posY)
+    local mBtn = Instance.new("TextButton")
+    mBtn.Size = UDim2.new(1, -20, 0, 24); mBtn.Position = UDim2.new(0, 10, 0, posY); mBtn.BackgroundColor3 = (levelingMode == modeVal) and Color3.fromRGB(0, 140, 255) or Color3.fromRGB(15, 18, 28); mBtn.BorderSizePixel = 0; mBtn.Text = (levelingMode == modeVal and "[ACTIVE] " or "") .. title; mBtn.TextColor3 = (levelingMode == modeVal) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 195, 230); mBtn.Font = Enum.Font.GothamSemibold; mBtn.TextSize = 9; mBtn.Parent = LevCardGroup
+    Instance.new("UICorner", mBtn).CornerRadius = UDim.new(0, 5)
 
-addToggle(FbgTab, "Auto Leveling Engine", "Rotasi skill otomatis dengan Safety Anchor", false, function(v) autoLevelingEnabled = v end)
+    modeButtons[modeVal] = { Btn = mBtn, Title = title }
+
+    mBtn.MouseButton1Click:Connect(function()
+        levelingMode = modeVal
+        for mv, data in pairs(modeButtons) do
+            if mv == levelingMode then
+                data.Btn.BackgroundColor3 = Color3.fromRGB(0, 140, 255)
+                data.Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                data.Btn.Text = "[ACTIVE] " .. data.Title
+            else
+                data.Btn.BackgroundColor3 = Color3.fromRGB(15, 18, 28)
+                data.Btn.TextColor3 = Color3.fromRGB(180, 195, 230)
+                data.Btn.Text = data.Title
+            end
+        end
+    end)
+end
+
+createModeOption("Current Position (Berdiri Bebas)", "Current Position", 30)
+createModeOption("Preset High Safe Spot (Melayang di Udara)", "Preset High Safe Spot", 58)
+createModeOption("Selected Area (Ke Area Yang Dipilih)", "Selected Area", 84)
+
+addToggle(FbgTab, "Auto Leveling Engine", "Rotasi skill otomatis dengan Safety Fly Anchor", false, function(v) autoLevelingEnabled = v end)
 
 local SkillCardContainer = Instance.new("Frame")
 SkillCardContainer.Size = UDim2.new(1, -10, 0, 150); SkillCardContainer.BackgroundColor3 = Color3.fromRGB(20, 24, 38); SkillCardContainer.BorderSizePixel = 0; SkillCardContainer.Parent = FbgTab
@@ -655,8 +712,60 @@ addButton(ServerTab, "Server Hop (Random)", "HOP", function()
 end)
 
 -- ============================================================
---  EXECUTION LOOPS & ESP ENGINE
+--  EXECUTION LOOPS & AUTO SPIN ENGINE
 -- ============================================================
+local function getCurrentRarity()
+    local mainData = LP:FindFirstChild("MAIN_DATA")
+    if mainData then
+        local activeFruit = getExactFruitAndLevel(LP)
+        local fruitsFolder = mainData:FindFirstChild("Fruits")
+        if fruitsFolder and activeFruit ~= "Unknown" then
+            local fruitObj = fruitsFolder:FindFirstChild(activeFruit)
+            if fruitObj then
+                local rVal = fruitObj:FindFirstChild("Rarity") or fruitObj:FindFirstChild("Tier")
+                if rVal then return tostring(rVal.Value) end
+            end
+        end
+    end
+    return "Common"
+end
+
+-- Auto Spin Loop Engine
+task.spawn(function()
+    while task.wait(1.2) do
+        if autoSpinEnabled then
+            local currentRarity = getCurrentRarity()
+            local currentWeight = rarityLevels[currentRarity] or 1
+            local targetWeight  = rarityLevels[targetRarity] or 5
+
+            if currentWeight >= targetWeight then
+                autoSpinEnabled = false
+                if toggleSetters["Auto Spin Engine"] then toggleSetters["Auto Spin Engine"](false) end
+                print("[CyRuZzz Auto Spin] Target Rarity Reached: " .. currentRarity)
+            else
+                -- 1. Coba Pemicu Remote Replicator
+                if ReplicatorNoYield then
+                    pcall(function() ReplicatorNoYield:FireServer("Spin", "Spin") end)
+                end
+
+                -- 2. Trigger Tombol Spin UI sebagai Cadangan
+                local spinGui = PlayerGui:FindFirstChild("UI") and PlayerGui.UI:FindFirstChild("Spin")
+                if spinGui then
+                    local spinBtn = spinGui:FindFirstChild("SpinButton") or spinGui:FindFirstChild("Spin")
+                    if spinBtn and spinBtn:IsA("GuiButton") then
+                        pcall(function()
+                            local center = spinBtn.AbsolutePosition + (spinBtn.AbsoluteSize / 2)
+                            VirtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, true, game, 1)
+                            task.wait(0.05)
+                            VirtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, false, game, 1)
+                        end)
+                    end
+                end
+            end
+        end
+    end
+end)
+
 local function getClosestEnemy()
     local closestPlr = nil; local shortestDist = math.huge
     local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
@@ -838,7 +947,7 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(inp, game
     end
 end))
 
--- FBG Auto Leveling Loop Dengan Safety Anchor
+-- FBG Auto Leveling Loop Dengan Safety Fly Anchor (Anti-Fall & Anti-Gravity Lock)
 local function isSkillReady(skillName)
     local cdFolder = LP:FindFirstChild("Cooldowns")
     if cdFolder then
@@ -849,18 +958,30 @@ local function isSkillReady(skillName)
 end
 
 local function enforceSafetyAnchor()
-    local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-    if not myHrp then return end
+    local char = LP.Character
+    local myHrp = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not myHrp or not hum then return end
 
-    if levelingMode == "Preset High Safe Spot" then
-        myHrp.CFrame = presetSafeCFrame
-    elseif levelingMode == "Selected Area" and selectedArea then
-        if typeof(selectedArea) == "CFrame" then
-            myHrp.CFrame = selectedArea
-        elseif typeof(selectedArea) == "Instance" then
-            if selectedArea:IsA("BasePart") then myHrp.CFrame = selectedArea.CFrame * CFrame.new(0, 5, 0)
-            elseif selectedArea:IsA("Model") then myHrp.CFrame = selectedArea:GetPivot() * CFrame.new(0, 5, 0) end
+    if levelingMode ~= "Current Position" then
+        -- Pasang Anti-Gravity Lock / Auto Fly jika belum aktif
+        local bv = myHrp:FindFirstChild("_CyLevBV") or Instance.new("BodyVelocity")
+        bv.Name = "_CyLevBV"; bv.Velocity = Vector3.zero; bv.MaxForce = Vector3.new(1e5, 1e5, 1e5); bv.Parent = myHrp
+        hum.PlatformStand = true
+
+        if levelingMode == "Preset High Safe Spot" then
+            myHrp.CFrame = presetSafeCFrame
+        elseif levelingMode == "Selected Area" and selectedArea then
+            if typeof(selectedArea) == "CFrame" then
+                myHrp.CFrame = selectedArea
+            elseif typeof(selectedArea) == "Instance" then
+                if selectedArea:IsA("BasePart") then myHrp.CFrame = selectedArea.CFrame * CFrame.new(0, 5, 0)
+                elseif selectedArea:IsA("Model") then myHrp.CFrame = selectedArea:GetPivot() * CFrame.new(0, 5, 0) end
+            end
         end
+    else
+        if myHrp:FindFirstChild("_CyLevBV") then myHrp._CyLevBV:Destroy() end
+        if not flyEnabled then hum.PlatformStand = false end
     end
 end
 
@@ -896,6 +1017,10 @@ task.spawn(function()
                     end
                 end
             end
+        else
+            -- Hapus Anti-Gravity Lock saat leveling mati
+            local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if myHrp and myHrp:FindFirstChild("_CyLevBV") then myHrp._CyLevBV:Destroy() end
         end
     end
 end)
@@ -903,7 +1028,7 @@ end)
 -- Total Cleanup
 CloseBtn.MouseButton1Click:Connect(function()
     autoLevelingEnabled = false; autoAimEnabled = false; universalEspEnabled = false; fbgEspEnabled = false; npcEspEnabled = false; antiAfkEnabled = false
-    antiStunEnabled = false; infDashEnabled = false; infJumpEnabled = false
+    antiStunEnabled = false; infDashEnabled = false; infJumpEnabled = false; autoSpinEnabled = false
     if flyConn then flyConn:Disconnect() end
     if noclipConn then noclipConn:Disconnect() end
     if speedConn then speedConn:Disconnect() end
@@ -917,6 +1042,9 @@ CloseBtn.MouseButton1Click:Connect(function()
     for _, bg in pairs(npcEspObjects) do bg:Destroy() end
     table.clear(npcEspObjects)
 
+    local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if myHrp and myHrp:FindFirstChild("_CyLevBV") then myHrp._CyLevBV:Destroy() end
+
     SG:Destroy()
     print("[CyRuZzz Hub] Full Unloaded Successfully!")
 end)
@@ -925,4 +1053,4 @@ MainLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() ta
 FbgLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() tabs["Fruit BG"].Page.CanvasSize = UDim2.new(0, 0, 0, FbgLayout.AbsoluteContentSize.Y + 20) end)
 ServerLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() tabs["Server"].Page.CanvasSize = UDim2.new(0, 0, 0, ServerLayout.AbsoluteContentSize.Y + 20) end)
 
-print("[CyRuZzz Universal Hub] Two-Way Sync Keyboard Engine Loaded!")
+print("[CyRuZzz Universal Hub] Auto Spin & Fly Safe Leveling Ready!")
