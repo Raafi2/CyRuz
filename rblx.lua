@@ -1,6 +1,6 @@
 -- ============================================================
 --  CyRuZzz Universal & Fruit BG Hub
---  Full Legacy Features + Area Teleport & Fixed NPC ESP
+--  Full Two-Way Keyboard & UI Switch Sync Engine
 -- ============================================================
 
 local Players              = game:GetService("Players")
@@ -16,7 +16,7 @@ local LP                   = Players.LocalPlayer
 local Camera               = workspace.CurrentCamera
 local PlayerGui            = LP:WaitForChild("PlayerGui")
 
--- Global States (100% Complete)
+-- Global States
 local universalEspEnabled  = false
 local fbgEspEnabled        = false
 local npcEspEnabled        = false
@@ -38,6 +38,11 @@ local tp2Pos               = nil
 local selectedPlayer       = nil
 local selectedArea         = nil
 
+-- Leveling Safety Anchor Config
+local levelingMode         = "Current Position" -- Options: "Current Position", "Preset High Safe Spot", "Selected Area"
+local presetSafeCFrame     = CFrame.new(0, 500, 0)
+
+local customAreas          = {}
 local espObjects           = {}
 local npcEspObjects        = {}
 local skillConfigs         = {}
@@ -92,7 +97,7 @@ Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 10)
 
 local BrandTitle = Instance.new("TextLabel")
 BrandTitle.Size = UDim2.new(0, 200, 1, 0); BrandTitle.Position = UDim2.new(0, 14, 0, 0); BrandTitle.BackgroundTransparency = 1
-BrandTitle.Text = "CYRUZZZ HUB  ✦"; BrandTitle.TextColor3 = Color3.fromRGB(0, 170, 255); BrandTitle.Font = Enum.Font.GothamBold; BrandTitle.TextSize = 13; BrandTitle.TextXAlignment = Enum.TextXAlignment.Left; BrandTitle.Parent = TopBar
+BrandTitle.Text = "CYRUZZZ HUB"; BrandTitle.TextColor3 = Color3.fromRGB(0, 170, 255); BrandTitle.Font = Enum.Font.GothamBold; BrandTitle.TextSize = 13; BrandTitle.TextXAlignment = Enum.TextXAlignment.Left; BrandTitle.Parent = TopBar
 
 local MinimizeBtn = Instance.new("TextButton")
 MinimizeBtn.Size = UDim2.new(0, 26, 0, 26); MinimizeBtn.Position = UDim2.new(1, -62, 0.5, -13); MinimizeBtn.BackgroundColor3 = Color3.fromRGB(35, 42, 65); MinimizeBtn.BorderSizePixel = 0
@@ -101,13 +106,13 @@ Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 6)
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 26, 0, 26); CloseBtn.Position = UDim2.new(1, -32, 0.5, -13); CloseBtn.BackgroundColor3 = Color3.fromRGB(210, 45, 65); CloseBtn.BorderSizePixel = 0
-CloseBtn.Text = "×"; CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255); CloseBtn.Font = Enum.Font.GothamBold; CloseBtn.TextSize = 14; CloseBtn.Parent = TopBar
+CloseBtn.Text = "x"; CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255); CloseBtn.Font = Enum.Font.GothamBold; CloseBtn.TextSize = 14; CloseBtn.Parent = TopBar
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 
 MinimizeBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MiniWidget.Visible = true end)
 MiniBtn.MouseButton1Click:Connect(function() MainFrame.Visible = true; MiniWidget.Visible = false end)
 
--- Sidebar & Navigation
+-- Sidebar Navigation
 local Sidebar = Instance.new("Frame")
 Sidebar.Size = UDim2.new(0, 140, 1, -38); Sidebar.Position = UDim2.new(0, 0, 0, 38); Sidebar.BackgroundColor3 = Color3.fromRGB(18, 21, 32); Sidebar.BorderSizePixel = 0; Sidebar.Parent = MainFrame
 local SideLayout = Instance.new("UIListLayout"); SideLayout.SortOrder = Enum.SortOrder.LayoutOrder; SideLayout.Padding = UDim.new(0, 4); SideLayout.Parent = Sidebar
@@ -117,13 +122,13 @@ local ContentFolder = Instance.new("Frame")
 ContentFolder.Size = UDim2.new(1, -140, 1, -38); ContentFolder.Position = UDim2.new(0, 140, 0, 38); ContentFolder.BackgroundTransparency = 1; ContentFolder.Parent = MainFrame
 
 local tabs = {}
-local function createTab(name, icon)
+local function createTab(name)
     local TabPage = Instance.new("ScrollingFrame")
     TabPage.Size = UDim2.new(1, -16, 1, -16); TabPage.Position = UDim2.new(0, 8, 0, 8); TabPage.BackgroundTransparency = 1; TabPage.BorderSizePixel = 0; TabPage.Visible = false; TabPage.ScrollBarThickness = 3; TabPage.CanvasSize = UDim2.new(0, 0, 0, 0); TabPage.Parent = ContentFolder
     local PageLayout = Instance.new("UIListLayout"); PageLayout.SortOrder = Enum.SortOrder.LayoutOrder; PageLayout.Padding = UDim.new(0, 8); PageLayout.Parent = TabPage
 
     local TabBtn = Instance.new("TextButton")
-    TabBtn.Size = UDim2.new(0, 124, 0, 32); TabBtn.BackgroundColor3 = Color3.fromRGB(24, 28, 42); TabBtn.BorderSizePixel = 0; TabBtn.Text = icon .. "  " .. name; TabBtn.TextColor3 = Color3.fromRGB(160, 175, 210); TabBtn.Font = Enum.Font.GothamSemibold; TabBtn.TextSize = 10; TabBtn.TextXAlignment = Enum.TextXAlignment.Left; TabBtn.Parent = Sidebar
+    TabBtn.Size = UDim2.new(0, 124, 0, 32); TabBtn.BackgroundColor3 = Color3.fromRGB(24, 28, 42); TabBtn.BorderSizePixel = 0; TabBtn.Text = name; TabBtn.TextColor3 = Color3.fromRGB(160, 175, 210); TabBtn.Font = Enum.Font.GothamSemibold; TabBtn.TextSize = 10; TabBtn.TextXAlignment = Enum.TextXAlignment.Left; TabBtn.Parent = Sidebar
     Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 6)
     local p = Instance.new("UIPadding"); p.PaddingLeft = UDim.new(0, 10); p.Parent = TabBtn
 
@@ -136,17 +141,19 @@ local function createTab(name, icon)
     return TabPage, PageLayout
 end
 
-local MainTab, MainLayout     = createTab("Universal", "🌐")
-local FbgTab, FbgLayout       = createTab("Fruit BG", "🍎")
-local ServerTab, ServerLayout = createTab("Server", "⚡")
+local MainTab, MainLayout     = createTab("Universal")
+local FbgTab, FbgLayout       = createTab("Fruit BG")
+local ServerTab, ServerLayout = createTab("Server")
 
 tabs["Universal"].Page.Visible = true; tabs["Universal"].Btn.BackgroundColor3 = Color3.fromRGB(0, 140, 255); tabs["Universal"].Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 
--- Component Helpers
+-- UI Helper Functions
 local function addSectionHeader(parent, text)
     local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, -10, 0, 20); lbl.BackgroundTransparency = 1; lbl.Text = "— " .. string.upper(text) .. " —"; lbl.TextColor3 = Color3.fromRGB(100, 120, 170); lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 9; lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Parent = parent
+    lbl.Size = UDim2.new(1, -10, 0, 20); lbl.BackgroundTransparency = 1; lbl.Text = "- " .. string.upper(text) .. " -"; lbl.TextColor3 = Color3.fromRGB(100, 120, 170); lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 9; lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Parent = parent
 end
+
+local toggleSetters = {}
 
 local function addToggle(parent, title, desc, defaultState, callback)
     local card = Instance.new("Frame")
@@ -163,11 +170,26 @@ local function addToggle(parent, title, desc, defaultState, callback)
     btn.Size = UDim2.new(0, 48, 0, 22); btn.Position = UDim2.new(1, -58, 0.5, -11); btn.BackgroundColor3 = defaultState and Color3.fromRGB(45, 180, 90) or Color3.fromRGB(45, 50, 75); btn.BorderSizePixel = 0; btn.Text = defaultState and "ON" or "OFF"; btn.TextColor3 = Color3.fromRGB(255, 255, 255); btn.Font = Enum.Font.GothamBold; btn.TextSize = 9; btn.Parent = card
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
 
-    local state = defaultState
+    local currentState = defaultState
+
+    local function updateVisual(newState)
+        currentState = newState
+        btn.Text = currentState and "ON" or "OFF"
+        btn.BackgroundColor3 = currentState and Color3.fromRGB(45, 180, 90) or Color3.fromRGB(45, 50, 75)
+    end
+
     btn.MouseButton1Click:Connect(function()
-        state = not state; btn.Text = state and "ON" or "OFF"; btn.BackgroundColor3 = state and Color3.fromRGB(45, 180, 90) or Color3.fromRGB(45, 50, 75)
-        callback(state)
+        currentState = not currentState
+        updateVisual(currentState)
+        callback(currentState)
     end)
+
+    toggleSetters[title] = function(forcedState)
+        local targetState = forcedState ~= nil and forcedState or (not currentState)
+        updateVisual(targetState)
+        callback(targetState)
+    end
+
     return card, btn
 end
 
@@ -221,10 +243,9 @@ local function addSliderRow(parent, title, val, minV, maxV, onUpdate)
 end
 
 -- ============================================================
---  1. UNIVERSAL TAB (FULL LEGACY FEATURES)
+--  1. UNIVERSAL TAB
 -- ============================================================
 addSectionHeader(MainTab, "Universal Visuals")
-
 local EspCard = addToggle(MainTab, "Universal ESP", "Nama & Body Highlight Player", false, function(v) universalEspEnabled = v end)
 local ReloadBtn = Instance.new("TextButton")
 ReloadBtn.Size = UDim2.new(0, 55, 0, 22); ReloadBtn.Position = UDim2.new(1, -120, 0.5, -11)
@@ -232,7 +253,6 @@ ReloadBtn.BackgroundColor3 = Color3.fromRGB(38, 48, 75); ReloadBtn.BorderSizePix
 Instance.new("UICorner", ReloadBtn).CornerRadius = UDim.new(0, 5)
 
 addSectionHeader(MainTab, "Player Mods")
-addToggle(MainTab, "Anti-Stun", "Mencegah stun / freeze karakter", false, function(v) antiStunEnabled = v end)
 addToggle(MainTab, "Infinite Dash", "Menghapus delay/cooldown dash", false, function(v) infDashEnabled = v end)
 addToggle(MainTab, "Infinite Jump", "Lompat tanpa batas di udara", false, function(v) infJumpEnabled = v end)
 
@@ -383,7 +403,7 @@ GotoPlrBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ============================================================
---  LOGIKA PENENTUAN BUAH VIA MAIN_DATA.Slot & Slots
+--  LOGIKA DETEKSI BUAH VIA MAIN_DATA
 -- ============================================================
 local function getExactFruitAndLevel(plr)
     local fruitName, fruitLevel = "Unknown", "0"
@@ -414,16 +434,17 @@ local function getExactFruitAndLevel(plr)
 end
 
 -- ============================================================
---  2. FRUIT BATTLEGROUNDS TAB (AREA TP & FIXED NPC ESP)
+--  2. FRUIT BATTLEGROUNDS TAB
 -- ============================================================
 addSectionHeader(FbgTab, "Combat & Target")
 addToggle(FbgTab, "Auto Aim (Gyro Lock)", "Otomatis mengunci ke musuh terdekat", false, function(v) autoAimEnabled = v end)
+addToggle(FbgTab, "Advanced Anti-Stun", "Secara aktif menghapus efek freeze, stun & combo", false, function(v) antiStunEnabled = v end)
 
 addSectionHeader(FbgTab, "FBG Specific ESP")
 addToggle(FbgTab, "Fruit & Level ESP", "Darah, Jarak, Buah, Level & Body", false, function(v) fbgEspEnabled = v end)
 addToggle(FbgTab, "NPC ESP (workspace.NPCs)", "Tampilkan teks penanda NPC map", false, function(v) npcEspEnabled = v end)
 
-addSectionHeader(FbgTab, "Area Teleport (workspace.Areas)")
+addSectionHeader(FbgTab, "Area Teleport (System & Custom Saved)")
 
 local AreaTpCard = Instance.new("Frame")
 AreaTpCard.Size = UDim2.new(1, -10, 0, 42); AreaTpCard.BackgroundColor3 = Color3.fromRGB(22, 26, 40); AreaTpCard.BorderSizePixel = 0; AreaTpCard.Parent = FbgTab
@@ -445,35 +466,97 @@ local AreaDropLayout = Instance.new("UIListLayout"); AreaDropLayout.Parent = Are
 local function updateAreaList()
     for _, child in ipairs(AreaDropFrame:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
     local count = 0
+    
     local areasFolder = workspace:FindFirstChild("Areas")
     if areasFolder then
         for _, area in ipairs(areasFolder:GetChildren()) do
             count = count + 1
             local aBtn = Instance.new("TextButton")
-            aBtn.Size = UDim2.new(1, 0, 0, 24); aBtn.BackgroundColor3 = Color3.fromRGB(28, 32, 50); aBtn.BorderSizePixel = 0; aBtn.Text = area.Name; aBtn.TextColor3 = Color3.fromRGB(200, 210, 255); aBtn.Font = Enum.Font.Gotham; aBtn.TextSize = 10; aBtn.ZIndex = 21; aBtn.Parent = AreaDropFrame
+            aBtn.Size = UDim2.new(1, 0, 0, 24); aBtn.BackgroundColor3 = Color3.fromRGB(28, 32, 50); aBtn.BorderSizePixel = 0; aBtn.Text = "[Map] " .. area.Name; aBtn.TextColor3 = Color3.fromRGB(200, 210, 255); aBtn.Font = Enum.Font.Gotham; aBtn.TextSize = 10; aBtn.ZIndex = 21; aBtn.Parent = AreaDropFrame
             aBtn.MouseButton1Click:Connect(function()
                 selectedArea = area
-                SelectAreaBtn.Text = area.Name
+                SelectAreaBtn.Text = "[Map] " .. area.Name
                 AreaDropFrame.Visible = false
             end)
         end
     end
+    
+    for name, cframe in pairs(customAreas) do
+        count = count + 1
+        local aBtn = Instance.new("TextButton")
+        aBtn.Size = UDim2.new(1, 0, 0, 24); aBtn.BackgroundColor3 = Color3.fromRGB(35, 45, 65); aBtn.BorderSizePixel = 0; aBtn.Text = "[Custom] " .. name; aBtn.TextColor3 = Color3.fromRGB(0, 255, 180); aBtn.Font = Enum.Font.GothamBold; aBtn.TextSize = 10; aBtn.ZIndex = 21; aBtn.Parent = AreaDropFrame
+        aBtn.MouseButton1Click:Connect(function()
+            selectedArea = cframe
+            SelectAreaBtn.Text = "[Custom] " .. name
+            AreaDropFrame.Visible = false
+        end)
+    end
+    
     AreaDropFrame.CanvasSize = UDim2.new(0, 0, 0, count * 24)
 end
 
 SelectAreaBtn.MouseButton1Click:Connect(function() AreaDropFrame.Visible = not AreaDropFrame.Visible; if AreaDropFrame.Visible then updateAreaList() end end)
 GotoAreaBtn.MouseButton1Click:Connect(function()
-    if selectedArea then
-        local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-        if myHrp then
+    local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if myHrp and selectedArea then
+        if typeof(selectedArea) == "CFrame" then
+            myHrp.CFrame = selectedArea
+        elseif typeof(selectedArea) == "Instance" then
             if selectedArea:IsA("BasePart") then myHrp.CFrame = selectedArea.CFrame * CFrame.new(0, 5, 0)
             elseif selectedArea:IsA("Model") then myHrp.CFrame = selectedArea:GetPivot() * CFrame.new(0, 5, 0) end
         end
     end
 end)
 
+local SaveAreaCard = Instance.new("Frame")
+SaveAreaCard.Size = UDim2.new(1, -10, 0, 42); SaveAreaCard.BackgroundColor3 = Color3.fromRGB(22, 26, 40); SaveAreaCard.BorderSizePixel = 0; SaveAreaCard.Parent = FbgTab
+Instance.new("UICorner", SaveAreaCard).CornerRadius = UDim.new(0, 6)
+
+local AreaNameBox = Instance.new("TextBox")
+AreaNameBox.Size = UDim2.new(0.6, 0, 0, 26); AreaNameBox.Position = UDim2.new(0, 10, 0.5, -13); AreaNameBox.BackgroundColor3 = Color3.fromRGB(15, 18, 28); AreaNameBox.BorderSizePixel = 0; AreaNameBox.PlaceholderText = "Ketik Nama Area..."; AreaNameBox.Text = ""; AreaNameBox.TextColor3 = Color3.fromRGB(255, 255, 255); AreaNameBox.Font = Enum.Font.Gotham; AreaNameBox.TextSize = 10; AreaNameBox.Parent = SaveAreaCard
+Instance.new("UICorner", AreaNameBox).CornerRadius = UDim.new(0, 5)
+
+local SavePosBtn = Instance.new("TextButton")
+SavePosBtn.Size = UDim2.new(0, 75, 0, 26); SavePosBtn.Position = UDim2.new(1, -85, 0.5, -13); SavePosBtn.BackgroundColor3 = Color3.fromRGB(45, 180, 90); SavePosBtn.BorderSizePixel = 0; SavePosBtn.Text = "SAVE POS"; SavePosBtn.TextColor3 = Color3.fromRGB(255, 255, 255); SavePosBtn.Font = Enum.Font.GothamBold; SavePosBtn.TextSize = 9; SavePosBtn.Parent = SaveAreaCard
+Instance.new("UICorner", SavePosBtn).CornerRadius = UDim.new(0, 5)
+
+SavePosBtn.MouseButton1Click:Connect(function()
+    local name = AreaNameBox.Text ~= "" and AreaNameBox.Text or ("Area_" .. tostring(#customAreas + 1))
+    local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        customAreas[name] = hrp.CFrame
+        AreaNameBox.Text = ""
+        SelectAreaBtn.Text = "[Custom] " .. name
+        selectedArea = hrp.CFrame
+        print("[CyRuZzz] Custom Area Saved: " .. name)
+    end
+end)
+
 addSectionHeader(FbgTab, "Auto Leveling Config")
-addToggle(FbgTab, "Auto Leveling Engine", "Rotasi skill otomatis di luar safezone", false, function(v) autoLevelingEnabled = v end)
+
+local LevelingPosCard = Instance.new("Frame")
+LevelingPosCard.Size = UDim2.new(1, -10, 0, 42); LevelingPosCard.BackgroundColor3 = Color3.fromRGB(22, 26, 40); LevelingPosCard.BorderSizePixel = 0; LevelingPosCard.Parent = FbgTab
+Instance.new("UICorner", LevelingPosCard).CornerRadius = UDim.new(0, 6)
+
+local LevPosLbl = Instance.new("TextLabel")
+LevPosLbl.Size = UDim2.new(0.4, 0, 1, 0); LevPosLbl.Position = UDim2.new(0, 10, 0, 0); LevPosLbl.BackgroundTransparency = 1; LevPosLbl.Text = "Leveling Location:"; LevPosLbl.TextColor3 = Color3.fromRGB(240, 245, 255); LevPosLbl.Font = Enum.Font.GothamSemibold; LevPosLbl.TextSize = 10; LevPosLbl.TextXAlignment = Enum.TextXAlignment.Left; LevPosLbl.Parent = LevelingPosCard
+
+local LevPosModeBtn = Instance.new("TextButton")
+LevPosModeBtn.Size = UDim2.new(0, 140, 0, 26); LevPosModeBtn.Position = UDim2.new(1, -150, 0.5, -13); LevPosModeBtn.BackgroundColor3 = Color3.fromRGB(38, 45, 70); LevPosModeBtn.BorderSizePixel = 0; LevPosModeBtn.Text = levelingMode; LevPosModeBtn.TextColor3 = Color3.fromRGB(0, 255, 180); LevPosModeBtn.Font = Enum.Font.GothamBold; LevPosModeBtn.TextSize = 9; LevPosModeBtn.Parent = LevelingPosCard
+Instance.new("UICorner", LevPosModeBtn).CornerRadius = UDim.new(0, 5)
+
+LevPosModeBtn.MouseButton1Click:Connect(function()
+    if levelingMode == "Current Position" then
+        levelingMode = "Preset High Safe Spot"
+    elseif levelingMode == "Preset High Safe Spot" then
+        levelingMode = "Selected Area"
+    else
+        levelingMode = "Current Position"
+    end
+    LevPosModeBtn.Text = levelingMode
+end)
+
+addToggle(FbgTab, "Auto Leveling Engine", "Rotasi skill otomatis dengan Safety Anchor", false, function(v) autoLevelingEnabled = v end)
 
 local SkillCardContainer = Instance.new("Frame")
 SkillCardContainer.Size = UDim2.new(1, -10, 0, 150); SkillCardContainer.BackgroundColor3 = Color3.fromRGB(20, 24, 38); SkillCardContainer.BorderSizePixel = 0; SkillCardContainer.Parent = FbgTab
@@ -596,20 +679,29 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
     local myChar = LP.Character
     local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
 
-    -- 1. Anti Stun & Inf Dash Loop
+    -- Advanced Anti Stun Loop
     if antiStunEnabled and myChar then
-        local stunObj = myChar:FindFirstChild("Stun") or myChar:FindFirstChild("Stunned") or myChar:FindFirstChild("Freeze")
-        if stunObj then stunObj:Destroy() end
+        for _, child in ipairs(myChar:GetChildren()) do
+            local name = string.lower(child.Name)
+            if string.find(name, "stun") or string.find(name, "freeze") or string.find(name, "action") or string.find(name, "combo") then
+                child:Destroy()
+            end
+        end
         local hum = myChar:FindFirstChildOfClass("Humanoid")
-        if hum and hum.WalkSpeed == 0 then hum.WalkSpeed = walkSpeedVal end
+        if hum then
+            if hum.WalkSpeed == 0 then hum.WalkSpeed = speedEnabled and walkSpeedVal or 16 end
+            if hum.PlatformStand then hum.PlatformStand = false end
+            if hum.AutoRotate == false then hum.AutoRotate = true end
+        end
     end
 
+    -- Infinite Dash Loop
     if infDashEnabled and myChar then
         local dashCd = myChar:FindFirstChild("DashCooldown") or myChar:FindFirstChild("GeppoCooldown") or myChar:FindFirstChild("Dodging")
         if dashCd then dashCd:Destroy() end
     end
 
-    -- 2. Auto Aim
+    -- Auto Aim
     if autoAimEnabled and myHrp then
         local targetPlr = getClosestEnemy()
         if targetPlr and targetPlr.Character and targetPlr.Character:FindFirstChild("HumanoidRootPart") then
@@ -621,7 +713,7 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- 3. Player ESP Updates
+    -- Player ESP
     for plr, data in pairs(espObjects) do
         local char = plr.Character; local isAnyEspOn = universalEspEnabled or fbgEspEnabled
         if isAnyEspOn and char and char:FindFirstChild("Head") then
@@ -648,7 +740,7 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- 4. FIXED NPC ESP (workspace.NPCs)
+    -- NPC ESP
     if npcEspEnabled then
         local npcsFolder = workspace:FindFirstChild("NPCs")
         if npcsFolder then
@@ -726,19 +818,27 @@ table.insert(connections, Players.PlayerAdded:Connect(createEsp))
 table.insert(connections, Players.PlayerRemoving:Connect(removeEsp))
 for _, p in ipairs(Players:GetPlayers()) do createEsp(p) end
 
--- Hotkeys Movement Handler
-table.insert(connections, UserInputService.InputBegan:Connect(function(inp, gp)
-    if gp then return end
+-- Global Two-Way Keyboard & UI Switch Sync Engine
+table.insert(connections, UserInputService.InputBegan:Connect(function(inp, gameProcessed)
+    if gameProcessed then return end
+    
     local k = inp.KeyCode
-    if k == Enum.KeyCode.T then flyEnabled = not flyEnabled; if flyEnabled then enableFly() else disableFly() end
-    elseif k == Enum.KeyCode.C then noclipEnabled = not noclipEnabled
-    elseif k == Enum.KeyCode.Q then speedEnabled = not speedEnabled
-    elseif k == Enum.KeyCode.H then local h = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart"); if h and tp1Pos then h.CFrame = tp1Pos end
-    elseif k == Enum.KeyCode.J then local h = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart"); if h and tp2Pos then h.CFrame = tp2Pos end
+    if k == Enum.KeyCode.T then
+        if toggleSetters["Fly Mode [T]"] then toggleSetters["Fly Mode [T]"]() end
+    elseif k == Enum.KeyCode.C then
+        if toggleSetters["Noclip Mode [C]"] then toggleSetters["Noclip Mode [C]"]() end
+    elseif k == Enum.KeyCode.Q then
+        if toggleSetters["Walk Speed [Q]"] then toggleSetters["Walk Speed [Q]"]() end
+    elseif k == Enum.KeyCode.H then
+        local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if hrp and tp1Pos then hrp.CFrame = tp1Pos end
+    elseif k == Enum.KeyCode.J then
+        local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if hrp and tp2Pos then hrp.CFrame = tp2Pos end
     end
 end))
 
--- FBG Auto Leveling Loop
+-- FBG Auto Leveling Loop Dengan Safety Anchor
 local function isSkillReady(skillName)
     local cdFolder = LP:FindFirstChild("Cooldowns")
     if cdFolder then
@@ -746,6 +846,22 @@ local function isSkillReady(skillName)
         if cdObj and cdObj.Value > 0 then return false end
     end
     return true
+end
+
+local function enforceSafetyAnchor()
+    local myHrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if not myHrp then return end
+
+    if levelingMode == "Preset High Safe Spot" then
+        myHrp.CFrame = presetSafeCFrame
+    elseif levelingMode == "Selected Area" and selectedArea then
+        if typeof(selectedArea) == "CFrame" then
+            myHrp.CFrame = selectedArea
+        elseif typeof(selectedArea) == "Instance" then
+            if selectedArea:IsA("BasePart") then myHrp.CFrame = selectedArea.CFrame * CFrame.new(0, 5, 0)
+            elseif selectedArea:IsA("Model") then myHrp.CFrame = selectedArea:GetPivot() * CFrame.new(0, 5, 0) end
+        end
+    end
 end
 
 task.spawn(function()
@@ -758,6 +874,9 @@ task.spawn(function()
                     if tool:IsA("Tool") and not tool:GetAttribute("Locked") then
                         local name = tool.Name; local cfg = skillConfigs[name] or { Enabled = true, Hold = false, Duration = 1.0 }
                         if cfg.Enabled and isSkillReady(name) then
+                            enforceSafetyAnchor()
+                            task.wait(0.1)
+
                             hum:EquipTool(tool); task.wait(0.15)
                             local centerPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
                             if cfg.Hold then
@@ -769,7 +888,10 @@ task.spawn(function()
                                 task.wait(0.05)
                                 VirtualInputManager:SendMouseButtonEvent(centerPos.X, centerPos.Y, 0, false, game, 1)
                             end
-                            task.wait(0.2); hum:UnequipTools(); task.wait(0.3)
+                            task.wait(0.2); hum:UnequipTools(); task.wait(0.1)
+
+                            enforceSafetyAnchor()
+                            task.wait(0.2)
                         end
                     end
                 end
@@ -778,7 +900,7 @@ task.spawn(function()
     end
 end)
 
--- Total Cleanup on Close
+-- Total Cleanup
 CloseBtn.MouseButton1Click:Connect(function()
     autoLevelingEnabled = false; autoAimEnabled = false; universalEspEnabled = false; fbgEspEnabled = false; npcEspEnabled = false; antiAfkEnabled = false
     antiStunEnabled = false; infDashEnabled = false; infJumpEnabled = false
@@ -803,4 +925,4 @@ MainLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() ta
 FbgLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() tabs["Fruit BG"].Page.CanvasSize = UDim2.new(0, 0, 0, FbgLayout.AbsoluteContentSize.Y + 20) end)
 ServerLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() tabs["Server"].Page.CanvasSize = UDim2.new(0, 0, 0, ServerLayout.AbsoluteContentSize.Y + 20) end)
 
-print("[CyRuZzz Universal Hub] Ready with Full Legacy Features!")
+print("[CyRuZzz Universal Hub] Two-Way Sync Keyboard Engine Loaded!")
